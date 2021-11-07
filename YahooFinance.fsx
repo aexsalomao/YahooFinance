@@ -103,6 +103,18 @@ module YahooFinance =
 
         $"https://query1.finance.yahoo.com/v7/finance/download/{t}?period1={p1}&period2={p2}&interval={i}&events={e}&includeAdjustedClose=true"
         
+    let parsePriceSeries (ticker:string) (httpResponse:string) =
+        PriceObsCsv.Parse httpResponse
+        |> makePriceObs ticker
+    
+    let parseDividendSeries (ticker:string) (httpResponse:string) =
+        DividendObsCsv.Parse httpResponse
+        |> makeDividendObs ticker
+
+    let parseSplitsSeries (ticker:string) (httpResponse:string) =
+        StockSplitObsCsv.Parse httpResponse
+        |> makeStockSplitObs ticker
+
     let asyncYahooHttpsRequest yahooRequest = 
         async {
             let! asyncRequest = 
@@ -115,39 +127,11 @@ module YahooFinance =
             
             let asyncResult = 
                 match asyncRequest with
-                | Choice1Of2 r -> Ok (r, yahooRequest)
-                | Choice2Of2 exn -> Error exn
-                                            
-            return asyncResult
-       }
-    
-    let parsePriceSeries (ticker:string) (httpResponse:string) =
-        PriceObsCsv.Parse httpResponse
-        |> makePriceObs ticker
-    let parseDividendSeries (ticker:string) (httpResponse:string) =
-        DividendObsCsv.Parse httpResponse
-        |> makeDividendObs ticker
-    let parseSplitsSeries (ticker:string) (httpResponse:string) =
-        StockSplitObsCsv.Parse httpResponse
-        |> makeStockSplitObs ticker
-
-    let asyncYahooHttpsRequest2 yahooRequest = 
-        async {
-            let! asyncRequest = 
-                Http.AsyncRequestString(url = generateYahooUrl yahooRequest, 
-                                        httpMethod = "GET",
-                                        query = ["format","csv"],
-                                        headers = [HttpRequestHeaders.Accept HttpContentTypes.Csv],
-                                        silentHttpErrors = false)
-                |> Async.Catch
-            
-            let asyncResult = 
-                match asyncRequest with
-                | Choice1Of2 r -> 
+                | Choice1Of2 response -> 
                     match yahooRequest.Event with
-                    | Event.History -> History (parsePriceSeries yahooRequest.Ticker r)
-                    | Event.Dividends -> Dividends (parseDividendSeries yahooRequest.Ticker r)
-                    | Event.StockSplits -> StockSplits (parseSplitsSeries yahooRequest.Ticker r)
+                    | Event.History -> History (parsePriceSeries yahooRequest.Ticker response)
+                    | Event.Dividends -> Dividends (parseDividendSeries yahooRequest.Ticker response)
+                    | Event.StockSplits -> StockSplits (parseSplitsSeries yahooRequest.Ticker response)
                     |> Ok
                 | Choice2Of2 exn -> Error exn
                                             
@@ -162,14 +146,13 @@ module YahooFinance =
             |> makeSeries yahooRequest.Ticker
             |> Ok
 
-    let getSeriesResult parseCsv makeSeries yahooRequest = 
+    let getSeriesResult yahooRequest = 
         asyncYahooHttpsRequest yahooRequest
         |> Async.RunSynchronously
-        |> processSeriesResult parseCsv makeSeries
     
     let getSeriesMany yahooRequests = 
         yahooRequests
-        |> Seq.map asyncYahooHttpsRequest2
+        |> Seq.map asyncYahooHttpsRequest
         |> Async.Parallel 
         |> Async.RunSynchronously
         
@@ -221,212 +204,69 @@ module YahooFinance =
                 let getResult (yahooRequest: YahooRequest) =
                     [{ yahooRequest with Event = Event.History}]
                     |> getManyResult
-                    |> Seq.head                    
-                
-
+                    |> Seq.head
+                    
                 let tryGet yahooRequest = (getResult >> makeTryGet) yahooRequest
+                
                 let get yahooRequest = 
                     yahooRequest
                     |> (getResult >> makeGet >> unwrapHistory)
-                    
- (*               
-            module DividendSeries = 
-                let getMany (yahooRequests : seq<YahooRequest>)  = 
-                    yahooRequests
-                    |> Seq.map (fun req -> {req with Event=Event.Dividends})
-                    |> getSeriesMany
-  
-                let tryGet yahooRequest = (getResult >> makeTryGet) yahooRequest
-                let get yahooRequest = (getResult >> makeGet) yahooRequest
-                     
-            module StockSplitSeries = 
-                let getMany (yahooRequests : seq<YahooRequest>) = 
-                    yahooRequests
-                    |> Seq.map (fun req -> {req with Event=StockSplits})
-                    |> getSeriesMany StockSplitObsCsv.Parse makeStockSplitObs
-  
-                let tryGet yahooRequest = (getMany >> makeTryGet) yahooRequest
-                let get yahooRequest = (getMany >> makeGet) yahooRequest
-*)
+                   
         module ObjectOriented =
 
-            type yahooFinance (symbol, ?startOn:DateTime, ?endOn:DateTime, ?interval:Interval,?event:Event) =
+            let unwrapPriceObs seriesResult = 
+                match seriesResult with
+                | Ok (EventParsed.History series) -> Ok series
+                | Error exn -> Error exn
+                | _ -> failwith "should be priceObs"
+            
+            let unwrapDividendObs seriesResult = 
+                match seriesResult with
+                | Ok (EventParsed.Dividends series) -> Ok series
+                | Error exn -> Error exn
+                | _ -> failwith "should be priceObs"
+            
+            type priceHistory (?startOn:DateTime, ?endOn:DateTime, ?interval:Interval, ?event:Event) =
                 let endDate = defaultArg endOn (DateTime.Now)
                 let startDate = defaultArg startOn (endDate.AddMonths(-1))
                 let interval = defaultArg interval Daily
                 let event = defaultArg event Event.History
-                let request =
+
+                member this.StartDate = startDate
+                member this.EndDate = endDate
+                member this.Interval = interval
+                member this.Event = event
+
+                member this.getResult(symbol, ?startOn, ?endOn, ?interval) = 
+                    let endDate = defaultArg endOn this.EndDate
+                    let startDate = defaultArg startOn this.StartDate
+                    let interval = defaultArg interval this.Interval
+
                     { Ticker = symbol
                       StartDate = startDate
                       EndDate = endDate
-                      Interval = interval
-                      Event = event } 
-
-                static member priceHistoryResult(symbol, ?startOn, ?endOn, ?interval) =
-                    yahooFinance(symbol, ?startOn=startOn, ?endOn=endOn, ?interval=interval,?event=Some Event.History).Request
-                    |> getSeriesResult PriceObsCsv.Parse makePriceObs
-
-                static member priceHistory(symbol, ?startOn, ?endOn, ?interval) =
-                    yahooFinance.priceHistoryResult(symbol, ?startOn=startOn, ?endOn=endOn, ?interval=interval)
-                    |> makeGet
-
-                static member tryPriceHistory (symbol, ?startOn, ?endOn, ?interval) =
-                    yahooFinance.priceHistoryResult(symbol, ?startOn=startOn, ?endOn=endOn, ?interval=interval)
-                    |> makeTryGet
-
-                static member priceHistory(symbols:seq<string>, ?startOn, ?endOn, ?interval) =
-                    symbols
-                    |> Seq.map (fun s -> yahooFinance(s, ?startOn=startOn, ?endOn=endOn, ?interval=interval).Request)
-                    |> getSeriesMany
-
-                member this.Request = request
-
-            type PriceSeries()=
-
-                static member GetResult(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    { Ticker = symbol
-                      StartDate = startDate
-                      EndDate = endDate
-                      Interval = interval
-                      Event = Event.History }
-                    |> getSeriesResult PriceObsCsv.Parse makePriceObs
-
-                static member Get(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    makeGet (PriceSeries.GetResult(symbol=symbol, startOn=startDate, endOn=endDate, interval=interval))
-
-                static member TryGet(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    makeTryGet (PriceSeries.GetResult(symbol=symbol, startOn=startDate, endOn=endDate, interval=interval))
-(*
-            type DividendSeries() = 
-                member x.GetResult(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    { Ticker = symbol
-                      StartDate = startDate
-                      EndDate = endDate
-                      Interval = interval
-                      Event = Dividends }
-                    |> getSeriesResult DividendObsCsv.Parse makeDividendObs
-
-                member x.TryGet(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    makeTryGet (DividendSeries().GetResult(symbol=symbol, startOn=startDate, endOn=endDate, interval=interval))
-
-                member x.Get(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    makeGet (DividendSeries().GetResult(symbol=symbol, startOn=startDate, endOn=endDate, interval=interval))
-
-            type StockSplitSeries() = 
-                member x.GetResult(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    { Ticker = symbol
-                      StartDate = startDate
-                      EndDate = endDate
-                      Interval = interval
-                      Event = StockSplits }
-                    |> getSeriesResult StockSplitObsCsv.Parse makeStockSplitObs
+                      Event = event
+                      Interval = interval}
+                    |> getSeriesResult
+                    |> unwrapPriceObs
                 
-                member x.TryGet(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    makeTryGet (DividendSeries().GetResult(symbol=symbol, startOn=startDate, endOn=endDate, interval=interval))
+                member this.getMany(symbols:seq<string>, ?startOn:DateTime, ?endOn:DateTime, ?interval:Interval) =
+                    let endDate = defaultArg endOn this.EndDate
+                    let startDate = defaultArg startOn this.StartDate
+                    let interval = defaultArg interval this.Interval
 
-                member x.Get(symbol, ?startOn, ?endOn, ?interval) =
-                    let endDate = defaultArg endOn (DateTime.Now)
-                    let startDate = defaultArg startOn (endDate.AddMonths(-1))
-                    let interval = defaultArg interval Daily
-                    makeGet (DividendSeries().GetResult(symbol=symbol, startOn=startDate, endOn=endDate, interval=interval))
-*)
+                    symbols
+                    |> Seq.map (fun symbol ->
+                        { Ticker = symbol
+                          StartDate = startDate
+                          EndDate = endDate
+                          Event = Event.History
+                          Interval = interval})
+                    |> getSeriesMany
+                    |> Array.map unwrapPriceObs
 
 open YahooFinance
-open YahooFinance.Api.Functional
 open YahooFinance.Api.ObjectOriented
 
-let generatePeriodRequest startDate endDate interval ticker = 
-    request ticker
-    |> startOn startDate
-    |> endOn endDate
-    |> ofInterval interval
-
-let startDate, endDate = 
-    DateTime(1990,1,1), DateTime.Now
-
-let periodRequest = 
-    generatePeriodRequest startDate endDate Daily
-
-[|"MSFT"; "IBM"; "AAPL"; "GOOG"; "DIS";|]
-|> Seq.map (periodRequest >> PriceSeries.get)
-
-[|"MSFT"; "IBM"; "AAPL"; "GOOG"; "DIS";|]
-|> Seq.map periodRequest
-|> PriceSeries.getManyResult
-
-
-PriceSeries.Get("IBM", startOn=startDate, endOn=endDate, interval=Interval.Daily)
-
-yahooFinance.priceHistory("IBM", startOn=startDate, endOn=endDate, interval=Interval.Daily)
-yahooFinance.priceHistory("IBM")
-yahooFinance.priceHistory(["IBM";"DIS"])
-yahooFinance.tryPriceHistory("IBM", startOn=startDate,interval=Interval.Monthly)
-
-(*
-DividendSeries.TryGet("IBM", startOn=startDate, endOn=endDate, interval=Interval.Daily)
-StockSplitSeries.GetResult("IBM", startOn=startDate, endOn=endDate, interval=Interval.Daily)
-*)
-
-(*
-*.FunctionalApi
-*.ObjectApi
-
-// two modules, or just work on functional
-open YahooFinance.API.Functional
-open YahooFinance.API.ObjectOriented
-
-// 1. functional YahooFinance.get that failwith if there's an error.
-// 2. functional YahooFinance.tryGet that does Some/None if there's an error, or OkError and then it'd be YahooFinance.getResult
-// 3. Same for the objectoriented one, this should automatically return the price history. No "get" needed. Like YahooFinance.tryPriceHistory
-// 4. Last thing, implement getting one that takes a sequence of tickers as input and returns an array of histories.
-
-**)
-(*
-[| Ok [| 1.. 3|]
-   Error "this is terrible" |]
-
-open YahooFinance
-
-["MSFT"; "GOOG"; "BBLN"]
-|> List.map (fun stock -> 
-    stock
-    |> PriceHistory.request
-    |> YahooFinance.startOn (DateTime(2020,1,1))
-    |> YahooFinance.endOn (DateTime(2020,1,5))
-    |> YahooFinance.setInterval.weekly
-    |> PriceHistory.get)
-
-let msft = 
-    "MSFT"
-    |> PriceHistory.request
-    |> YahooFinance.startOn (DateTime(2020,1,1))
-    |> YahooFinance.endOn (DateTime(2020,2,5))
-    |> PriceHistory.get        
-
-// OfFrequequncy
-"MSFT"
-**)
+let hist = priceHistory(startOn=DateTime(2021,1,1), endOn=DateTime(2021,1,10), interval=Daily)
+hist.getMany(["IBM"; "DIS"])
