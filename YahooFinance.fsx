@@ -101,8 +101,8 @@ module YahooFinance =
             yahooRequest.Interval.ToString(),
             yahooRequest.Event.ToString()
 
-        $"https://query1.finance.yahoo.com/v8/finance/quote/{t}?period1={p1}&period2={p2}&interval={i}&events={e}&includeAdjustedClose=true"
-        
+        $"https://query1.finance.yahoo.com/v7/finance/download/{t}?period1={p1}&period2={p2}&interval={i}&events={e}&includeAdjustedClose=true"
+
     let parsePriceSeries ticker httpResponse =
         PriceObsCsv.Parse httpResponse
         |> makePriceObs ticker
@@ -115,51 +115,81 @@ module YahooFinance =
         StockSplitObsCsv.Parse httpResponse
         |> makeStockSplitObs ticker
 
-    let asyncYahooHttpsRequest yahooRequest = 
-        async {
-            let! asyncRequest = 
-                Http.AsyncRequestString(url = generateYahooUrl yahooRequest, 
-                                        httpMethod = "GET",
-                                        query = ["format","csv"],
-                                        headers = [HttpRequestHeaders.Accept HttpContentTypes.Csv],
-                                        silentHttpErrors = false)
-                |> Async.Catch
-            
-            let asyncResult = 
-                match asyncRequest with
-                | Choice1Of2 response -> 
-                    match yahooRequest.Event with
-                    | Event.History -> YahooObs.History (parsePriceSeries yahooRequest.Ticker response)
-                    | Event.Dividends -> YahooObs.Dividends (parseDividendSeries yahooRequest.Ticker response)
-                    | Event.StockSplits -> YahooObs.StockSplits (parseSplitsSeries yahooRequest.Ticker response)
-                    |> Ok
-                | Choice2Of2 exn -> Error exn
-                                            
-            return asyncResult
-       }
+    let cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
 
-    let processSeriesResult parseCsv makeSeries (result : (Result<string*YahooRequest, exn>)) = 
-        match result with
-        | Error e -> Error e
-        | Ok (seriesCsv, yahooRequest) -> 
-            parseCsv seriesCsv
-            |> makeSeries yahooRequest.Ticker
-            |> Ok
+    let parseYahooResponse yahooRequest yahooResponse = 
+        match yahooRequest.Event with
+        | Event.History -> YahooObs.History (parsePriceSeries yahooRequest.Ticker yahooResponse)
+        | Event.Dividends -> YahooObs.Dividends (parseDividendSeries yahooRequest.Ticker yahooResponse)
+        | Event.StockSplits -> YahooObs.StockSplits (parseSplitsSeries yahooRequest.Ticker yahooResponse)
+
+    let asyncYahooHttpsRequest yahooRequest = 
+            async {
+                let! asyncRequest = 
+                    Http.AsyncRequestString(url = generateYahooUrl yahooRequest, 
+                                            httpMethod = "GET",
+                                            query = ["format","csv"],
+                                            headers = [HttpRequestHeaders.Accept HttpContentTypes.Csv],
+                                            silentHttpErrors = false)
+                    |> Async.Catch
+                
+                do! Async.Sleep 2000
+                
+                let asyncResult = 
+                    match asyncRequest with
+                    | Choice1Of2 response -> Ok response
+                    | Choice2Of2 exn -> Error exn
+                                                
+                return asyncResult
+        }
 
     let getSeriesResult yahooRequest = 
-        asyncYahooHttpsRequest yahooRequest
-        |> Async.RunSynchronously
-    
-    let getSeriesMany yahooRequests = 
-        yahooRequests
-        |> Seq.map asyncYahooHttpsRequest
-        |> Async.Parallel 
-        |> Async.RunSynchronously
+        let key = yahooRequest.ToString()
+        let parseRes = parseYahooResponse yahooRequest
+        match cache.TryRetrieve(key) with
+        | Some response -> response |> parseRes |> Ok
+        | None -> 
+            asyncYahooHttpsRequest yahooRequest
+            |> Async.RunSynchronously
+            |> function
+            | Ok response ->
+                cache.Set(key, response) 
+                response |> parseRes |> Ok
+            | Error e -> Error e
         
+    let getSeriesMany (yahooRequests: YahooRequest seq) = 
+        yahooRequests
+        |> Seq.map (fun request -> (request, cache.TryRetrieve(request.ToString()).IsSome))
+        |> Seq.groupBy (fun (_, inCache) -> inCache)
+        |> Seq.collect (fun (isInCacheFlag, requests) -> 
+
+            let groupRequests = 
+                requests 
+                |> Seq.map fst 
+                |> Seq.toArray
+
+            if isInCacheFlag then 
+                groupRequests
+                |> Seq.map (fun (request) -> 
+                    let response = cache.TryRetrieve(request.ToString()).Value
+                    parseYahooResponse request response |> Ok)
+            else
+                groupRequests
+                |> Seq.map asyncYahooHttpsRequest
+                |> Async.Parallel
+                |> Async.RunSynchronously
+                |> Seq.mapi (fun i res -> 
+                    match res with
+                    | Ok response ->
+                        let request = groupRequests.[i]
+                        cache.Set(request.ToString(), response)
+                        parseYahooResponse request response |> Ok
+                    | Error e -> Error e))
+
     let inline makeTryGet expr =
         match expr with
         | Ok series -> Some series
-        | _ -> None
+        | Error _ -> None
         
     let inline makeGet expr = 
         match expr with
@@ -169,8 +199,8 @@ module YahooFinance =
     module Api =
 
         module Functional = 
-            let request idx = 
-                {Ticker = idx
+            let request ticker = 
+                {Ticker = ticker
                  StartDate = DateTime.Now.AddMonths(-1)
                  EndDate = DateTime.Now
                  Interval = Daily
@@ -198,11 +228,16 @@ module YahooFinance =
                     yahooRequests
                     |> Seq.map (fun xs -> {xs with Event=Event.History})
                     |> getSeriesMany
+                    |> Seq.toArray
+                    |> Array.map (fun res -> 
+                        match res with
+                        | Ok res -> Ok (unwrapHistory res)
+                        | Error e -> Error e)
                 
                 let getMany (yahooRequests : seq<YahooRequest>) = 
                     yahooRequests
                     |> getManyResult
-                    |> Array.map (makeGet >> unwrapHistory)
+                    |> Array.map makeGet
                 
                 let getResult (yahooRequest: YahooRequest) =
                     [{ yahooRequest with Event = Event.History}]
@@ -215,7 +250,7 @@ module YahooFinance =
                 
                 let get yahooRequest = 
                     yahooRequest
-                    |> (getResult >> makeGet >> unwrapHistory)
+                    |> (getResult >> makeGet)
                    
         module ObjectOriented =
 
@@ -270,10 +305,6 @@ let ResolutionFolder = __SOURCE_DIRECTORY__
 type SP500Constituents = CsvProvider<"data-cache/sp500_constituents.csv", ResolutionFolder=ResolutionFolder>
 let sp500Constituents = SP500Constituents.Load(__SOURCE_DIRECTORY__ + "/data-cache/sp500_constituents.csv").Cache()
 
-// Nasdaq
-type NasdaqConstituents = CsvProvider<"data-cache/nasdaq_constituents.csv", ResolutionFolder=ResolutionFolder, Separators=";">
-let nasdaqConstituents = NasdaqConstituents.Load(__SOURCE_DIRECTORY__ + "/data-cache/nasdaq_constituents.csv").Cache()
-
 type ReturnObs = 
     { Date : DateTime
       Return : float}
@@ -294,6 +325,14 @@ type StockObs =
         |> Array.sortBy (fun xs -> xs.Date)
         |> fun xs -> ((Seq.last xs).AdjustedClose / (Seq.head xs).AdjustedClose) - 1.
 
+let fb = 
+    "FB"
+    |> request
+    |> ofEvent Event.History
+    |> startOn (DateTime(2020, 1, 1))
+    |> endOn (DateTime(2020, 1, 5))
+    |> getResult
+
 // Price
 let sp500Hist = 
     sp500Constituents.Rows
@@ -301,11 +340,6 @@ let sp500Hist =
         xs.Symbol 
         |> request
         |> ofEvent Event.History
-        |> startOn (DateTime.Now.AddDays(-10.))
-        |> endOn (DateTime.Now))
+        |> startOn (DateTime(2020, 1, 1))
+        |> endOn (DateTime(2020, 1, 30)))
     |> getManyResult
-    |> Seq.choose (fun xs -> 
-        match xs with
-        | Ok (YahooObs.History obs) -> Some {PriceObs = obs}
-        | _ -> None)
-    |> Seq.toArray
