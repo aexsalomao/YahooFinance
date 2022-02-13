@@ -101,17 +101,17 @@ module YahooFinance =
             yahooRequest.Interval.ToString(),
             yahooRequest.Event.ToString()
 
-        $"https://query1.finance.yahoo.com/v7/finance/download/{t}?period1={p1}&period2={p2}&interval={i}&events={e}&includeAdjustedClose=true"
+        $"https://query1.finance.yahoo.com/v8/finance/quote/{t}?period1={p1}&period2={p2}&interval={i}&events={e}&includeAdjustedClose=true"
         
-    let parsePriceSeries (ticker:string) (httpResponse:string) =
+    let parsePriceSeries ticker httpResponse =
         PriceObsCsv.Parse httpResponse
         |> makePriceObs ticker
     
-    let parseDividendSeries (ticker:string) (httpResponse:string) =
+    let parseDividendSeries ticker httpResponse =
         DividendObsCsv.Parse httpResponse
         |> makeDividendObs ticker
 
-    let parseSplitsSeries (ticker:string) (httpResponse:string) =
+    let parseSplitsSeries ticker httpResponse =
         StockSplitObsCsv.Parse httpResponse
         |> makeStockSplitObs ticker
 
@@ -129,9 +129,9 @@ module YahooFinance =
                 match asyncRequest with
                 | Choice1Of2 response -> 
                     match yahooRequest.Event with
-                    | Event.History -> History (parsePriceSeries yahooRequest.Ticker response)
-                    | Event.Dividends -> Dividends (parseDividendSeries yahooRequest.Ticker response)
-                    | Event.StockSplits -> StockSplits (parseSplitsSeries yahooRequest.Ticker response)
+                    | Event.History -> YahooObs.History (parsePriceSeries yahooRequest.Ticker response)
+                    | Event.Dividends -> YahooObs.Dividends (parseDividendSeries yahooRequest.Ticker response)
+                    | Event.StockSplits -> YahooObs.StockSplits (parseSplitsSeries yahooRequest.Ticker response)
                     |> Ok
                 | Choice2Of2 exn -> Error exn
                                             
@@ -260,7 +260,6 @@ module YahooFinance =
                     static member GetResult(symbol) = 
                        PriceHistory().LoadResult(symbol)
 
-
 open YahooFinance.Api.Functional
 open YahooFinance.Api.Functional.PriceSeries
 open YahooFinance
@@ -275,88 +274,38 @@ let sp500Constituents = SP500Constituents.Load(__SOURCE_DIRECTORY__ + "/data-cac
 type NasdaqConstituents = CsvProvider<"data-cache/nasdaq_constituents.csv", ResolutionFolder=ResolutionFolder, Separators=";">
 let nasdaqConstituents = NasdaqConstituents.Load(__SOURCE_DIRECTORY__ + "/data-cache/nasdaq_constituents.csv").Cache()
 
-
 type ReturnObs = 
     { Date : DateTime
       Return : float}
 
-type Id = 
-    { Symbol : string
-      Name : string
-      Sector : string}
-
 type StockObs = 
-    { Id : Id
-      PriceObs : PriceObs array
-      ReturnObs : ReturnObs array}
+    { PriceObs : PriceObs array} with
+
+    member this.ReturnObs = 
+        this.PriceObs
+        |> Array.sortBy (fun xs -> xs.Date)
+        |> Array.pairwise
+        |> Array.map (fun (pv, fv) -> 
+            { Date = pv.Date
+              Return = (fv.AdjustedClose / pv.AdjustedClose) - 1.})
+    
+    member this.CumulativeReturn = 
+        this.PriceObs
+        |> Array.sortBy (fun xs -> xs.Date)
+        |> fun xs -> ((Seq.last xs).AdjustedClose / (Seq.head xs).AdjustedClose) - 1.
 
 // Price
 let sp500Hist = 
     sp500Constituents.Rows
-    |> Seq.take 50
-    |> Seq.choose (fun xs -> 
+    |> Seq.map (fun xs -> 
         xs.Symbol 
         |> request
-        |> tryGet
-        |> function
-        | Some (YahooObs.History obs) -> 
-            let id = { Symbol = xs.Symbol 
-                       Name = xs.Name 
-                       Sector = xs.Sector}
-                       
-            let returnObs = 
-                obs
-                |> Array.pairwise
-                |> Array.map (fun (ytdy, tdy) -> 
-                    { Date = tdy.Date
-                      Return = (tdy.AdjustedClose / ytdy.AdjustedClose) - 1.})
-                |> Array.sortBy (fun xs -> xs.Date)
-            
-            let stockObs = { Id = id
-                             PriceObs = obs
-                             ReturnObs = returnObs}
-
-            Some stockObs
-        | _ -> None)
-        |> Seq.toArray
-
-nasdaqConstituents.Rows
-|> Seq.length
-
-let nasdaqHist = 
-    nasdaqConstituents.Rows
+        |> ofEvent Event.History
+        |> startOn (DateTime.Now.AddDays(-10.))
+        |> endOn (DateTime.Now))
+    |> getManyResult
     |> Seq.choose (fun xs -> 
-        xs.Symbol 
-        |> request
-        |> startOn ((DateTime.Today).AddDays((float (-14 * 1))))
-        |> endOn ((DateTime.Today))
-        |> tryGet
-        |> function
-        | Some (YahooObs.History obs) -> 
-            let id = { Symbol = xs.Symbol 
-                       Name = xs.Name
-                       Sector = "Technology/Nasdaq"}
-                       
-            let returnObs = 
-                obs
-                |> Array.pairwise
-                |> Array.map (fun (ytdy, tdy) -> 
-                    { Date = tdy.Date
-                      Return = (tdy.AdjustedClose / ytdy.AdjustedClose) - 1.})
-                |> Array.sortBy (fun xs -> xs.Date)
-            
-            let stockObs = { Id = id
-                             PriceObs = obs
-                             ReturnObs = returnObs}
-
-            Some stockObs
+        match xs with
+        | Ok (YahooObs.History obs) -> Some {PriceObs = obs}
         | _ -> None)
-        |> Seq.toArray
-
-
-let allRets = 
-    nasdaqHist
-    |> Array.map (fun xs ->
-        let longRet = ((Seq.last xs.PriceObs).AdjustedClose / (Seq.head xs.PriceObs).AdjustedClose) - 1.
-        xs.Id, longRet)
-    |> Array.sortByDescending snd
+    |> Seq.toArray
