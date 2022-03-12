@@ -2,6 +2,7 @@
 
 open System
 open FSharp.Data
+open FSharp.Data.JsonExtensions
 
 module Chart = 
 
@@ -43,63 +44,66 @@ module Chart =
         let symbol =
             chartResult
             |> Array.map (fun xs -> xs.Meta.Symbol)
-            |> Array.exactlyOne
-
-        let openPrice, closePrice, high, low, volume = 
-            chartResult 
+            |> Array.tryExactlyOne
+        
+        let quote = 
+            chartResult
             |> Array.collect (fun xs -> xs.Indicators.Quote)
-            |> fun quotes ->
-                quotes |> Array.collect (fun xs -> xs.Open),
-                quotes |> Array.collect (fun xs -> xs.Close),
-                quotes |> Array.collect (fun xs -> xs.High),
-                quotes |> Array.collect (fun xs -> xs.Low),
-                quotes |> Array.collect (fun xs -> xs.Volume)
-
+            |> Array.tryExactlyOne
+        
         let adjustedClose = 
             chartResult
-            |> Array.collect (fun xs -> xs.Indicators.Adjclose |> Array.collect (fun xs -> xs.Adjclose))
+            |> Array.collect (fun xs -> xs.Indicators.Adjclose)
+            |> Array.tryExactlyOne
         
         let timestamp = 
             chartResult 
             |> Array.collect (fun xs -> xs.Timestamp)
         
-        let lengthCounts =
-            [openPrice.Length
-             closePrice.Length
-             high.Length
-             low.Length
-             volume.Length
-             adjustedClose.Length
-             timestamp.Length
-            ]
-            |> Set
-        
-        if lengthCounts.Count > 1 then
-            Error $"Bad data, {symbol}"
-        else
-            timestamp
-            |> Array.mapi (fun i ts -> 
-                { 
-                    Symbol = symbol
-                    Date = DateTimeOffset.FromUnixTimeMilliseconds(int64 ts).DateTime
-                    Open  = openPrice.[i]
-                    High = high.[i]
-                    Low = low.[i]
-                    Close = closePrice.[i]
-                    AdjustedClose = adjustedClose.[i]
-                    Volume = decimal volume.[i]
-                })
-            |> Ok
-    
+        match symbol, quote, adjustedClose with
+        | Some symbol, Some quote, Some adjustedClose 
+            when Set([quote.Close.Length; 
+                      quote.High.Length;
+                      quote.Open.Length;
+                      quote.Low.Length;
+                      quote.Volume.Length;
+                      adjustedClose.Adjclose.Length;
+                      timestamp.Length]).Count
+                    = 1 ->
+                        timestamp
+                        |> Array.Parallel.mapi (fun i ts -> 
+                            { 
+                                Symbol = symbol
+                                Date = DateTimeOffset.FromUnixTimeSeconds(int64 ts).DateTime
+                                Open = quote.Open.[i]
+                                High = quote.High.[i]
+                                Low = quote.Low.[i]
+                                Close = quote.Close.[i]
+                                AdjustedClose = adjustedClose.Adjclose.[i]
+                                Volume = decimal quote.Volume.[i]
+                            })
+                        |> Ok
+        | None, _, _ -> Error "Missing symbol"
+        | _, None, _ -> Error "Missing quote"
+        | _, _, None -> Error "Missing adjusted close"
+        | _ -> Error $"Missing data for {symbol}"
+                
     let private retryCount = 5
     let private parallelSymbols = 5
         
     let rec asyncLoadChart attempt chartQuery = 
         async {
-            let queryUrl = generateChartQueryUrl chartQuery
+                let queryUrl = generateChartQueryUrl chartQuery
             try
-                let! result = Chart.AsyncLoad(queryUrl)
-                return populateQuotes result.Chart.Result
+                let! chart = Chart.AsyncLoad(queryUrl)
+                
+                let chartReturn = 
+                    let jsonErrorStr = chart.Chart.Error.JsonValue.ToString()
+                    match jsonErrorStr with
+                    | "null" -> populateQuotes chart.Chart.Result
+                    | _ -> Error jsonErrorStr
+
+                return chartReturn
             with e -> 
                 if attempt > 0 then
                     return! asyncLoadChart (attempt - 1) chartQuery
@@ -107,9 +111,11 @@ module Chart =
                 }
     
     let rec getSymbols (queries : list<ChartQuery>) output =
+        
         let download thisDownload =
             [| for query in thisDownload do 
-                asyncLoadChart retryCount query|]
+                asyncLoadChart retryCount query
+                printfn $"{query.Symbol}"|]
             |> Async.Parallel
             |> Async.RunSynchronously
             |> Array.toList
@@ -136,7 +142,7 @@ let sp500Constituents = SP500Constituents.Load(__SOURCE_DIRECTORY__ + "/data-cac
 let myQuery = 
         {
             Symbol = "AAPL" 
-            StartDate = DateTime.Now.AddDays(-50.)
+            StartDate = DateTime.Now.AddDays(-1500.)
             EndDate = DateTime.Now
             Interval = "1d"
         }
