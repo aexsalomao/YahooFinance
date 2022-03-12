@@ -94,22 +94,22 @@ module Chart =
     let private retryCount = 5
     let private parallelSymbols = 5
         
-    let rec asyncLoadChart parseChart attempt chartQuery = 
+    let rec asyncLoadChart attempt chartQuery = 
         async {
             let queryUrl = generateChartQueryUrl chartQuery
             try
                 let! result = Chart.AsyncLoad(queryUrl)
-                return parseChart result.Chart.Result
+                return populateQuotes result.Chart.Result
             with e -> 
                 if attempt > 0 then
-                    return! asyncLoadChart parseChart (attempt - 1) chartQuery
+                    return! asyncLoadChart (attempt - 1) chartQuery
                 else return $"Failed to request {chartQuery.Symbol}, Error: {e}" |> Error
                 }
     
     let rec getSymbols (queries : list<ChartQuery>) output =
         let download thisDownload =
             [| for query in thisDownload do 
-                asyncLoadChart populateQuotes retryCount query|]
+                asyncLoadChart retryCount query|]
             |> Async.Parallel
             |> Async.RunSynchronously
             |> Array.toList
