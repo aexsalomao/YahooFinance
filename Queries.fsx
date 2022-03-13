@@ -5,7 +5,7 @@ open System
 open JsonApis.Providers
 open FSharp.Data
 
-module Chart = 
+module Quotes = 
 
     type Interval = 
         | Daily
@@ -31,7 +31,7 @@ module Chart =
             | FiveYear -> "5y"
             | TenYear -> "10y"
     
-    type ChartQuery = 
+    type QuoteQuery = 
         { 
             Symbol : string
             StartDate : System.DateTime
@@ -57,13 +57,13 @@ module Chart =
             Amount : float
         }
     
-    let generateChartQueryUrl (chartQuery : ChartQuery) = 
+    let generateChartQueryUrl (quoteQuery : QuoteQuery) = 
 
         let datetimeToUnix dt = DateTimeOffset(dt).ToUnixTimeSeconds() |> string
 
-        $"https://query1.finance.yahoo.com/v8/finance/chart/{chartQuery.Symbol}?&" +
-        $"period1={datetimeToUnix chartQuery.StartDate}&period2={datetimeToUnix chartQuery.EndDate}&" +
-        $"interval={chartQuery.Interval.ToString()}&" + 
+        $"https://query1.finance.yahoo.com/v8/finance/chart/{quoteQuery.Symbol}?&" +
+        $"period1={datetimeToUnix quoteQuery.StartDate}&period2={datetimeToUnix quoteQuery.EndDate}&" +
+        $"interval={quoteQuery.Interval.ToString()}&" + 
         "includePrePost=true&events=div%7CSplit"
       
     let populateQuotes (chartResult : Chart.Result []) = 
@@ -117,6 +117,7 @@ module Chart =
                         AdjustedClose = adjustedClose.Adjclose.[i]
                         Volume = decimal quote.Volume.[i]
                     })
+                    |> Array.toList
                     |> Ok
         | None, _, _ -> Error "Unable to find ticker symbol from meta"
         | _, None, _ -> Error "Quote not found"
@@ -125,28 +126,34 @@ module Chart =
                     
     let private retryCount = 5
     let private parallelSymbols = 5
-    let cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
-        
-    let rec asyncLoadChart attempt chartQuery = 
-        async {
-                let queryUrl = generateChartQueryUrl chartQuery
-            try
-                let! chart = Chart.AsyncLoad(queryUrl)
+    let private cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
 
-                let chartReturn = 
-                    let jsonErrorStr = chart.Chart.Error.JsonValue.ToString()
-                    match jsonErrorStr with
-                    | "null" -> populateQuotes chart.Chart.Result
-                    | _ -> Error jsonErrorStr
-                cache.Set(chartQuery.ToString(), chartReturn)
-                return chartReturn
-            with e -> 
+    let parseChart (query : QuoteQuery) (chartRoot : Chart.Root) = 
+        let chartError = chartRoot.Chart.Error.JsonValue.ToString()
+        match populateQuotes chartRoot.Chart.Result with
+        | Ok quotes when chartError = "null" -> 
+            cache.Set(query.ToString(), quotes)
+            Ok quotes
+        | Error popError -> Error popError
+        | _ -> Error chartError
+
+    let rec asyncLoadChart attempt query = 
+        async {
+                let queryUrl = generateChartQueryUrl query
+            try
+                match cache.TryRetrieve(query.ToString()) with
+                | Some quotes -> return Ok quotes
+                | None -> 
+                    let! chart = Chart.AsyncLoad(queryUrl)
+                    return parseChart query chart
+            with
+            | e -> 
                 if attempt > 0 then
-                    return! asyncLoadChart (attempt - 1) chartQuery
-                else return $"Failed to request {chartQuery.Symbol}, Error: {e}" |> Error
-                }
+                    return! asyncLoadChart (attempt - 1) query
+                else return $"Failed to request {query.Symbol}, Error: {e}" |> Error
+            }
     
-    let rec getSymbols (queries : list<ChartQuery>) output =
+    let rec getSymbols (queries : list<QuoteQuery>) output =
         
         let download thisDownload =
             [| for query in thisDownload do 
@@ -163,26 +170,11 @@ module Chart =
         else
             let result = download queries
             result @ output
+        
+    let private getResult queries =
+        getSymbols queries []
     
-    let getResult (queries : ChartQuery seq) =
-        queries
-        |> Seq.toList
-        |> List.map (fun request -> (request, cache.TryRetrieve(request.ToString()).IsSome))
-        |> List.groupBy (fun (_, inCache) -> inCache)
-        |> List.collect (fun (isInCache, queries) -> 
-
-            let groupQueries = 
-                queries 
-                |> Seq.map fst 
-                |> Seq.toList
-
-            if isInCache then
-                groupQueries
-                |> List.choose (fun query -> cache.TryRetrieve(query.ToString()))
-            else
-                getSymbols groupQueries [])
-    
-    let tryGet queries = 
+    let private tryGet queries = 
         queries
         |> getResult 
         |> List.map (fun xs -> 
@@ -190,7 +182,7 @@ module Chart =
             | Ok quotes -> Some quotes
             | Error _ -> None)
     
-    let get queries = 
+    let private get queries = 
         queries
         |> getResult
         |> List.map (fun xs -> 
@@ -198,21 +190,51 @@ module Chart =
             | Ok quotes -> quotes
             | Error e -> failwith e)
     
-    module Functional = 
+    let private request symbol =
+        { 
+            Symbol = symbol
+            StartDate = DateTime.Today.AddYears(-1)
+            EndDate = DateTime.Today
+            Interval = Daily
+        }
+        
+    let private startOn startOn query : QuoteQuery = 
+        {query with StartDate=startOn}
 
-        let request symbol = 
-            { 
-                Symbol = symbol
-                StartDate = DateTime.Now.AddMonths(-1)
-                EndDate = DateTime.Now
-                Interval = Daily
-            }
-                    
-        let startOn startOn chartQuery : ChartQuery = 
-            {chartQuery with StartDate=startOn}
+    let private endOn endOn quoteQuery : QuoteQuery = 
+        {quoteQuery with EndDate=endOn}
+    
+    let private ofInterval ofInterval quoteQuery : QuoteQuery = 
+        {quoteQuery with Interval=ofInterval}
+    
+    type YahooQueryFun() =
+
+        member this.request query = request query
+        member this.startOn startDate query = startOn startDate query
+        member this.endOn endDate query = endOn endDate query
+        member this.ofInterval interval query = ofInterval interval query
         
-        let endOn endOn chartQuery : ChartQuery  = 
-            {chartQuery with EndDate=endOn}
+        member this.getResult queries = getResult queries
+        member this.tryGet queries = tryGet queries
+        member this.get queries = get queries
+            
+    type YahooQuery =
+
+        static member Quotes(symbols: seq<string>,?startDate: DateTime,?endDate: DateTime,?interval: Interval) =
+            let startDate = defaultArg startDate (DateTime.Today.AddYears(-1))
+            let endDate = defaultArg endDate (DateTime.Today)
+            let interval = defaultArg interval Interval.Daily
+
+            symbols
+            |> Seq.toList
+            |> List.map (fun symbol -> 
+                {
+                    Symbol = symbol
+                    StartDate = startDate
+                    EndDate = endDate
+                    Interval = interval
+                })
+            |> get 
         
-        let ofInterval ofInterval chartQuery : ChartQuery = 
-            {chartQuery with Interval=ofInterval}
+        static member Quotes(symbol: string,?startDate: DateTime,?endDate: DateTime,?interval: Interval) =
+            YahooQuery.Quotes(symbols=[symbol],?startDate=startDate,?endDate=endDate,?interval=interval)
