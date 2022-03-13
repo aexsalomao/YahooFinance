@@ -35,7 +35,6 @@ techstocks
 techstocks
 |> List.map buildChartQuery
 |> yQuery.get
-|> List.concat
 
 // Method 4 - Get (failwith) - OO
-let quotes = YahooQuery.Quotes(techstocks) |> List.concat
+let quotes = YahooQuery.Quotes(techstocks)

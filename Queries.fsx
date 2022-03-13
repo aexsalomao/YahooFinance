@@ -216,7 +216,7 @@ module Quotes =
         
         member this.getResult queries = getResult queries
         member this.tryGet queries = tryGet queries
-        member this.get queries = get queries
+        member this.get queries = get queries |> List.concat
             
     type YahooQuery =
 
@@ -234,7 +234,8 @@ module Quotes =
                     EndDate = endDate
                     Interval = interval
                 })
-            |> get 
+            |> get
+            |> List.concat
         
         static member Quotes(symbol: string,?startDate: DateTime,?endDate: DateTime,?interval: Interval) =
             YahooQuery.Quotes(symbols=[symbol],?startDate=startDate,?endDate=endDate,?interval=interval)
