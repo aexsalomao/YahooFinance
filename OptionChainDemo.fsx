@@ -144,12 +144,11 @@ let OptionChain =
 // FSharp Data
 type OptionChainProvider = JsonProvider<OptionChain>
 
-// Get all expiration dates first ... 
-let defaultOptionUrl symbol = $"https://query2.finance.yahoo.com/v7/finance/options/{symbol}"
-
 // Default request ... if no date is given --> request defaults to "current expiration"
+let defaultChainUrl symbol = $"https://query2.finance.yahoo.com/v7/finance/options/{symbol}"
+
 let aaplChain = 
-    OptionChainProvider.Load(defaultOptionUrl "AAPL").OptionChain.Result
+    OptionChainProvider.Load(defaultChainUrl "AAPL").OptionChain.Result
     |> Array.exactlyOne
 
 // Interesting metrics ... see OptionChainQuote
