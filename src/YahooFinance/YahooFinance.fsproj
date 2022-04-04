@@ -6,9 +6,7 @@
   <ItemGroup>
     <Compile Include="EmbeddedResources.fs" />
     <Compile Include="JsonApis.fs" />
-    <Compile Include="Library.fs" />
-    <Compile Include="Queries.fs" />
-    <Compile Include="Testing.fs" />
+    <Compile Include="Price.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Data" Version="4.2.8" />
