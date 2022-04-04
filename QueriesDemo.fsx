@@ -7,6 +7,7 @@ let techstocks = ["MSFT"; "AMZN"; "IBM"; "AAPL"]
 
 let yQuery = YahooQueryFun()
 
+
 let buildChartQuery stock = 
     stock
     |> yQuery.request

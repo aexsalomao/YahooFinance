@@ -129,6 +129,7 @@ module Samples =
                 }
         }"""
 
+
     [<Literal>]
     let OptionChain = """  
         {
@@ -153,6 +154,4 @@ module Samples =
     
     
     """
-
-
 
