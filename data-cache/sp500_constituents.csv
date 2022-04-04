@@ -63,7 +63,6 @@ BAC,Bank of America,Financials
 BBWI,Bath & Body Works Inc.,Consumer Discretionary
 BAX,Baxter International,Health Care
 BDX,Becton Dickinson,Health Care
-BRK.B,Berkshire Hathaway,Financials
 BBY,Best Buy,Consumer Discretionary
 BIO,Bio-Rad Laboratories,Health Care
 TECH,Bio-Techne,Health Care
@@ -79,7 +78,6 @@ BMY,Bristol Myers Squibb,Health Care
 AVGO,Broadcom,Information Technology
 BR,Broadridge Financial Solutions,Information Technology
 BRO,Brown & Brown,Financials
-BF.B,Brown–Forman,Consumer Staples
 CHRW,C. H. Robinson,Industrials
 CDNS,Cadence Design Systems,Information Technology
 CZR,Caesars Entertainment,Consumer Discretionary
@@ -266,7 +264,6 @@ JNJ,Johnson & Johnson,Health Care
 JCI,Johnson Controls,Industrials
 JPM,JPMorgan Chase,Financials
 JNPR,Juniper Networks,Information Technology
-KSU,Kansas City Southern,Industrials
 K,Kellogg's,Consumer Staples
 KEY,KeyCorp,Financials
 KEYS,Keysight Technologies,Information Technology
