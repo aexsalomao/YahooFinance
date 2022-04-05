@@ -2,32 +2,35 @@ namespace EmbeddedResources
 
  module Samples = 
     
-    module ChartSample =
+    module ChartLiterals =
+
+        [<Literal>]
+        let ChartMeta = """
+            {
+                "currency"             : "USD",
+                "symbol"               : "AAPL",
+                "exchangeName"         : "NMS",
+                "instrumentType"       : "EQUITY",
+                "firstTradeDate"       : 345479400,
+                "regularMarketTime"    : 1647023958,
+                "gmtoffset"            : -18000,
+                "timezone"             : "EST",
+                "exchangeTimezoneName" : "America/New_York",
+                "regularMarketPrice"   : 156.4,
+                "chartPreviousClose"   : 163.17,
+                "dataGranularity"      : "1d",
+                "validRanges"          : ["1d","5d","1mo","3mo","6mo","1y","2y","5y","10y","ytd","max"]
+            }"""
     
         [<Literal>]
-        let ChartSampleWithDividends = """
+        let Chart = """
             {
                 "chart":
                     {
                         "result":
                             [
                                 {
-                                    "meta":
-                                        {
-                                            "currency":"USD",
-                                            "symbol":"AAPL",
-                                            "exchangeName":"NMS",
-                                            "instrumentType":"EQUITY",
-                                            "firstTradeDate":345479400,
-                                            "regularMarketTime":1647023958,
-                                            "gmtoffset":-18000,
-                                            "timezone":"EST",
-                                            "exchangeTimezoneName":"America/New_York",
-                                            "regularMarketPrice":156.4,
-                                            "chartPreviousClose":163.17,
-                                            "dataGranularity":"1d",
-                                            "validRanges":["1d","5d","1mo","3mo","6mo","1y","2y","5y","10y","ytd","max"]
-                                        },
+                                    "meta":""" + ChartMeta + """,
                                     "timestamp":[1646663400,1646749800,1646836200,1646922600,1647023958],
                                     "events":
                                             {

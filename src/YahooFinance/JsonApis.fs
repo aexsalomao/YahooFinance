@@ -1,8 +1,8 @@
 namespace JsonApis
 
- open EmbeddedResources.Samples.ChartSample
+ open EmbeddedResources.Samples
  open FSharp.Data
 
  module Providers =
 
-     type Chart = JsonProvider<ChartSampleWithDividends> 
+     type ChartProvider = JsonProvider<ChartLiterals.Chart> 
