@@ -61,9 +61,9 @@ module Series =
 
     type Series = 
         { 
-            Meta         : ChartProvider.Meta
-            History      : Quote list
-            Events       : Events
+            Meta    : ChartProvider.Meta
+            History : Quote list
+            Events  : Events
         }
     
     type QueryResponse = 
@@ -73,7 +73,7 @@ module Series =
         }
 
     let parseJsonDividends dividends gmtOffset = 
-        match Regex.Matches(dividends, "(?<=\"amount\":\s+)\d.\d+"), Regex.Matches(dividends, "((?<=\"date\":\s+)\d+)") with
+        match Regex.Matches(dividends, "(?<=\"amount\":\s+)\d+[.]?\d+"), Regex.Matches(dividends, "((?<=\"date\":\s+)\d+)") with
         | amount_matches, date_matches when amount_matches.Count = date_matches.Count && amount_matches.Count > 0 
             -> amount_matches
                 |> Seq.zip date_matches
@@ -116,7 +116,7 @@ module Series =
                 try
                     parseJsonDividends (chartResult.Events.Dividends.JsonValue.ToString()) chartResult.Meta.Gmtoffset
                 with
-                | e -> None
+                | _ -> None
 
             let quoteHistory = 
                 chartResult.Timestamp
@@ -204,18 +204,17 @@ module Series =
     let private ofInterval ofInterval quoteQuery : QuoteQuery = 
         {quoteQuery with Interval=ofInterval}
     
-    let private foldQuotesResult (data, errorLog) (queryResult : Result<Series, string>) = 
+    let private foldResult (data, errorLog) (queryResult : Result<Series, string>) = 
         match queryResult with
-        | Ok quotes -> (quotes :: data, errorLog)
+        | Ok series -> (series :: data, errorLog)
         | Error e -> (data, e :: errorLog)
     
     let getSeries queries = 
         queries 
         |> getResult
-        |> fun queriesResult -> 
-            let data, errorLog = List.fold foldQuotesResult ([], []) queriesResult
-            {Data = data ; ErrorLog = errorLog}
-    
+        |> List.fold foldResult ([], [])
+        |> fun (data, errorLog) -> {Data = data ; ErrorLog = errorLog}
+
     module BuildQuery =
 
         let private log message = 

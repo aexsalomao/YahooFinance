@@ -396,17 +396,13 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-tests/YahooFinance.Tests/bin/Debug/net5.0/YahooFinance.Tests.dll
-tests/YahooFinance.Tests/bin/Debug/net5.0/YahooFinance.Tests.pdb
-tests/YahooFinance.Tests/obj/Debug/net5.0/YahooFinance.Tests.dll
-tests/YahooFinance.Tests/obj/Debug/net5.0/YahooFinance.Tests.fsprojAssemblyReference.cache
-tests/YahooFinance.Tests/obj/Debug/net5.0/YahooFinance.Tests.pdb
-tests/YahooFinance.Tests/bin/Debug/net5.0/YahooFinance.pdb
-tests/YahooFinance.Tests/bin/Debug/net5.0/YahooFinance.dll
-src/YahooFinance/obj/Debug/net5.0/YahooFinance.pdb
-src/YahooFinance/obj/Debug/net5.0/YahooFinance.dll
-src/YahooFinance/bin/Debug/net5.0/YahooFinance.pdb
-src/YahooFinance/bin/Debug/net5.0/YahooFinance.dll
-src/YahooFinance/.DS_Store
-src/.DS_Store
-.ionide/symbolCache.db
+
+# bin/obj files to ignore
+/src/YahooFinance/bin
+/src/YahooFinance/obj
+/tests/YahooFinance.Tests/bin
+/tests/YahooFinance.Tests/obj
+
+.DS_Store
+.db
+/.ionide
