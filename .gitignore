@@ -400,9 +400,12 @@ FodyWeavers.xsd
 # bin/obj files to ignore
 /src/YahooFinance/bin
 /src/YahooFinance/obj
-/tests/YahooFinance.Tests/bin
-/tests/YahooFinance.Tests/obj
+/tests
 
 .DS_Store
 .db
 /.ionide
+/.vscode
+/data-cache
+/misc
+YahooFinance.sln
