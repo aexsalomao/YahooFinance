@@ -398,9 +398,7 @@ FodyWeavers.xsd
 *.sln.iml
 
 # Custom files to ignore
-/tests
 .DS_Store
 .db
 data-cache
 misc
-YahooFinance.sln
