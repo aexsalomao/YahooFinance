@@ -397,15 +397,10 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
-# bin/obj files to ignore
-/src/YahooFinance/bin
-/src/YahooFinance/obj
+# Custom files to ignore
 /tests
-
 .DS_Store
 .db
-/.ionide
-/.vscode
-/data-cache
-/misc
+data-cache
+misc
 YahooFinance.sln
