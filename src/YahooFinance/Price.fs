@@ -1,11 +1,11 @@
-#load "JsonApis.fsx"
-#r "nuget: FSharp.Data"
+namespace Price
 
 open System
 open JsonApis.Providers
 open FSharp.Data
+open System.Text.RegularExpressions
 
-module Quotes = 
+module Series = 
 
     type Interval = 
         | Daily
@@ -33,29 +33,56 @@ module Quotes =
     
     type QuoteQuery = 
         { 
-            Symbol : string
+            Symbol    : string
             StartDate : System.DateTime
-            EndDate : System.DateTime
-            Interval : Interval
+            EndDate   : System.DateTime
+            Interval  : Interval
         }
-
+    
     type Quote = 
         {   
-            Symbol : string
-            Date : System.DateTime
-            Open : decimal
-            High : decimal
-            Low : decimal
-            Close : decimal
+            Symbol        : string
+            Date          : System.DateTime
+            Open          : decimal
+            High          : decimal
+            Low           : decimal
+            Close         : decimal
             AdjustedClose : decimal
-            Volume : decimal
+            Volume        : decimal
         }
     
     type Dividend = 
         {
-            DividendId : int
-            Amount : float
+            Date : System.DateTime
+            Amount : decimal
         }
+    
+    type Events = {Dividends : Dividend list option}
+
+    type Series = 
+        { 
+            Meta    : ChartProvider.Meta
+            History : Quote list
+            Events  : Events
+        }
+    
+    type QueryResponse = 
+        {
+            Data     : Series List
+            ErrorLog : string List
+        }
+
+    let parseJsonDividends dividends gmtOffset = 
+        match Regex.Matches(dividends, "(?<=\"amount\":\s+)\d+[.]?\d+"), Regex.Matches(dividends, "((?<=\"date\":\s+)\d+)") with
+        | amount_matches, date_matches when amount_matches.Count = date_matches.Count && amount_matches.Count > 0 
+            -> amount_matches
+                |> Seq.zip date_matches
+                |> Seq.map (fun (date_match, amount_match) -> 
+                    { Date = DateTimeOffset.FromUnixTimeSeconds(float date_match.Value - float gmtOffset |> int64).DateTime
+                      Amount = amount_match.Value |> decimal})
+                |> Seq.toList
+                |> Some
+        | _ -> None
     
     let generateChartQueryUrl (quoteQuery : QuoteQuery) = 
 
@@ -65,76 +92,62 @@ module Quotes =
         $"period1={datetimeToUnix quoteQuery.StartDate}&period2={datetimeToUnix quoteQuery.EndDate}&" +
         $"interval={quoteQuery.Interval.ToString()}&" + 
         "includePrePost=true&events=div%7CSplit"
-      
-    let populateQuotes (chartResult : Chart.Result []) = 
+    
+    let checkChartResult (chartResult : ChartProvider.Result) =
+        match Array.tryExactlyOne chartResult.Indicators.Quote, 
+        Array.tryExactlyOne chartResult.Indicators.Adjclose with
+        | Some quote, Some adjClose -> 
+            if Set([quote.Close.Length; 
+                    quote.High.Length; 
+                    quote.Open.Length; 
+                    quote.Low.Length; 
+                    quote.Volume.Length; 
+                    chartResult.Timestamp.Length; 
+                    adjClose.Adjclose.Length]).Count = 1 then Ok (quote, adjClose)
+            else
+                Error "Missing data error (Data is not aligned)"
+        | _ -> Error "Chart.Result Error"
 
-        let symbol =
-            chartResult
-            |> Array.map (fun xs -> xs.Meta.Symbol)
-            |> Array.tryExactlyOne
-        
-        let quote = 
-            chartResult
-            |> Array.collect (fun xs -> xs.Indicators.Quote)
-            |> Array.tryExactlyOne
-        
-        let adjustedClose = 
-            chartResult
-            |> Array.collect (fun xs -> xs.Indicators.Adjclose)
-            |> Array.tryExactlyOne
-        
-        let timestamp = 
-            chartResult 
-            |> Array.collect (fun xs -> xs.Timestamp)
-        
-        let dataIsAlignedWithTime (chartDataToCheck: Chart.Quote * Chart.Adjclose) = 
-            let quote, adjustedClose = chartDataToCheck
-            Set([quote.Close.Length; 
-                 quote.High.Length;
-                 quote.Open.Length;
-                 quote.Low.Length;
-                 quote.Volume.Length;
-                 adjustedClose.Adjclose.Length;
-                 timestamp.Length]).Count = 1
-        
-        let resultData = symbol, quote, adjustedClose
+    let populateSeries (chartResult : ChartProvider.Result) = 
+        match checkChartResult chartResult with
+        | Error e -> Error e
+        | Ok (quote, adjClose) -> 
+            let dividends = 
+                try
+                    parseJsonDividends (chartResult.Events.Dividends.JsonValue.ToString()) chartResult.Meta.Gmtoffset
+                with
+                | _ -> None
 
-        match resultData with
-        | Some symbol, 
-          Some quote, 
-          Some adjustedClose 
-          when (quote, adjustedClose) 
-               |> dataIsAlignedWithTime -> 
-                timestamp
+            let quoteHistory = 
+                chartResult.Timestamp
                 |> Array.Parallel.mapi (fun i ts -> 
                     { 
-                        Symbol = symbol
+                        Symbol = chartResult.Meta.Symbol
                         Date = DateTimeOffset.FromUnixTimeSeconds(int64 ts).DateTime
                         Open = quote.Open.[i]
                         High = quote.High.[i]
                         Low = quote.Low.[i]
                         Close = quote.Close.[i]
-                        AdjustedClose = adjustedClose.Adjclose.[i]
+                        AdjustedClose = adjClose.Adjclose.[i]
                         Volume = decimal quote.Volume.[i]
                     })
                     |> Array.toList
-                    |> Ok
-        | None, _, _ -> Error "Unable to find ticker symbol from meta"
-        | _, None, _ -> Error "Quote not found"
-        | _, _, None -> Error "Adjusted close not found"
-        | _ -> Error $"Missing data for: {symbol}"
+                
+            Ok {Meta = chartResult.Meta ; History = quoteHistory ; Events = {Dividends = dividends}}
                     
     let private retryCount = 5
     let private parallelSymbols = 5
     let private cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
 
-    let parseChart (query : QuoteQuery) (chartRoot : Chart.Root) = 
+    let parseChart (query : QuoteQuery) (chartRoot : ChartProvider.Root) = 
         let chartError = chartRoot.Chart.Error.JsonValue.ToString()
-        match populateQuotes chartRoot.Chart.Result with
-        | Ok quotes when chartError = "null" -> 
-            cache.Set(query.ToString(), quotes)
-            Ok quotes
-        | Error popError -> Error popError
+        match Array.tryExactlyOne chartRoot.Chart.Result with
+        | Some chartResult when chartError = "null" ->    
+            chartResult 
+            |> populateSeries
+            |> fun series -> 
+                cache.Set(query.ToString(), series)
+                series
         | _ -> Error chartError
 
     let rec asyncLoadChart attempt query = 
@@ -142,15 +155,15 @@ module Quotes =
                 let queryUrl = generateChartQueryUrl query
             try
                 match cache.TryRetrieve(query.ToString()) with
-                | Some quotes -> return Ok quotes
+                | Some quotes -> return quotes
                 | None -> 
-                    let! chart = Chart.AsyncLoad(queryUrl)
+                    let! chart = ChartProvider.AsyncLoad(queryUrl)
                     return parseChart query chart
             with
             | e -> 
                 if attempt > 0 then
                     return! asyncLoadChart (attempt - 1) query
-                else return $"Failed to request {query.Symbol}, Error: {e}" |> Error
+                else return $"Failed to request {query.ToString()}" |> Error
             }
     
     let rec getSymbols (queries : list<QuoteQuery>) output =
@@ -174,22 +187,6 @@ module Quotes =
     let private getResult queries =
         getSymbols queries []
     
-    let private tryGet queries = 
-        queries
-        |> getResult 
-        |> List.map (fun xs -> 
-            match xs with
-            | Ok quotes -> Some quotes
-            | Error _ -> None)
-    
-    let private get queries = 
-        queries
-        |> getResult
-        |> List.map (fun xs -> 
-            match xs with
-            | Ok quotes -> quotes
-            | Error e -> failwith e)
-    
     let private request symbol =
         { 
             Symbol = symbol
@@ -207,17 +204,34 @@ module Quotes =
     let private ofInterval ofInterval quoteQuery : QuoteQuery = 
         {quoteQuery with Interval=ofInterval}
     
-    type YahooQueryFun() =
+    let private foldResult (data, errorLog) (queryResult : Result<Series, string>) = 
+        match queryResult with
+        | Ok series -> (series :: data, errorLog)
+        | Error e -> (data, e :: errorLog)
+    
+    let getSeries queries = 
+        queries 
+        |> getResult
+        |> List.fold foldResult ([], [])
+        |> fun (data, errorLog) -> {Data = data ; ErrorLog = errorLog}
 
-        member this.request query = request query
-        member this.startOn startDate query = startOn startDate query
-        member this.endOn endDate query = endOn endDate query
-        member this.ofInterval interval query = ofInterval interval query
-        
-        member this.getResult queries = getResult queries
-        member this.tryGet queries = tryGet queries
-        member this.get queries = get queries |> List.concat
+    module BuildQuery =
+
+        let private log message = 
+            printfn "\n %s \n" message
+
+        let create symbol = 
+            symbol 
+            |> request 
+            |> fun query -> 
+                printfn "====== Query ======" 
+                log (query.ToString())
+                query
             
+        let startOn startDate query = query |> startOn startDate
+        let endOn endDate query = query |> endOn endDate
+        let ofInterval interval query = query |> ofInterval interval
+
     type YahooQuery =
 
         static member Quotes(symbols: seq<string>,?startDate: DateTime,?endDate: DateTime,?interval: Interval) =
@@ -234,8 +248,7 @@ module Quotes =
                     EndDate = endDate
                     Interval = interval
                 })
-            |> get
-            |> List.concat
+            |> getSeries
         
         static member Quotes(symbol: string,?startDate: DateTime,?endDate: DateTime,?interval: Interval) =
             YahooQuery.Quotes(symbols=[symbol],?startDate=startDate,?endDate=endDate,?interval=interval)
