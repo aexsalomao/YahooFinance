@@ -2,6 +2,8 @@ module Tests
 
 open System
 open Xunit
+open FsUnit.Xunit
+open FsUnitTyped
 
 open Price.Series
 
@@ -11,6 +13,10 @@ let response =
     techstocks
     |> List.map BuildQuery.create
     |> getSeries
+
+[<Fact>]
+let ``getSeries returns QueryResponse`` () =
+    response |> should be ofExactType<QueryResponse> 
 
 let msftSeries = 
     response.Data
@@ -26,7 +32,3 @@ let ibmDiv =
 
 let missing = response.ErrorLog
 
-
-[<Fact>]
-let ``My test`` () =
-    Assert.True(true)
