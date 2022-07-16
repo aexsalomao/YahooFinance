@@ -22,9 +22,11 @@ jobs:
       run: dotnet restore
     - name: Build and test
       run: | 
-        dotnet build --configuration Release
+        dotnet build
         dotnet test
     - name: Create Nuget
-      run: dotnet pack src/Quotes.YahooFinance/*.fsproj
+      run: |
+        dotnet build --configuration Release
+        dotnet pack --configuration Release src/Quotes.YahooFinance/*.fsproj
     - name: Publish NuGets (if this version not published before)
       run: dotnet nuget push src/Quotes.YahooFinance/*.nupkg -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
