@@ -29,4 +29,4 @@ jobs:
         dotnet build --configuration Release
         dotnet pack --configuration Release src/Quotes.YahooFinance/*.fsproj
     - name: Publish NuGets (if this version not published before)
-      run: dotnet nuget push src/Quotes.YahooFinance/*.nupkg -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
+      run: dotnet nuget push src/Quotes.YahooFinance/*/*.nupkg -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
