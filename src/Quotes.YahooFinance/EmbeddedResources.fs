@@ -1,4 +1,4 @@
-namespace EmbeddedResources
+namespace Quotes.YahooFinance.EmbeddedResources
 
  module Samples = 
     

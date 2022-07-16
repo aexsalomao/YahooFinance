@@ -1,7 +1,7 @@
-namespace Price
+namespace Quotes.YahooFinance
 
 open System
-open JsonApis.Providers
+open Quotes.YahooFinance.JsonApis.Providers
 open FSharp.Data
 open System.Text.RegularExpressions
 

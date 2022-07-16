@@ -1,6 +1,6 @@
-namespace JsonApis
+namespace Quotes.YahooFinance.JsonApis
 
- open EmbeddedResources.Samples
+ open Quotes.YahooFinance.EmbeddedResources.Samples
  open FSharp.Data
 
  module Providers =

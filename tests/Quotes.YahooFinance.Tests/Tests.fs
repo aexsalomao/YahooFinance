@@ -5,7 +5,7 @@ open Xunit
 open FsUnit.Xunit
 open FsUnitTyped
 
-open Price.Series
+open Quotes.YahooFinance.Series
 
 let techstocks = ["MSFT"; "AMZN"; "IBM"; "AAPL"; "NovaSbeInc."]
 

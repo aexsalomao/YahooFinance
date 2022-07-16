@@ -22,6 +22,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\YahooFinance\YahooFinance.fsproj" />
+    <ProjectReference Include="..\..\src\Quotes.YahooFinance\Quotes.YahooFinance.fsproj" />
   </ItemGroup>
 </Project>
