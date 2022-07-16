@@ -1,0 +1,32 @@
+name: Publish
+
+on:
+  push:
+    branches: [ main ]
+    
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: |
+          6.0.x
+    - name: Restore .NET local tools
+      run: dotnet tool restore
+    - name: Restore packages
+      run: dotnet restore
+    - name: Build and test
+      run: | 
+        dotnet build
+        dotnet test
+    - name: Create Nuget
+      run: |
+        dotnet build --configuration Release
+        dotnet pack --configuration Release src/Quotes.YahooFinance/*.fsproj
+    - name: Publish NuGets (if this version not published before)
+      run: dotnet nuget push src/Quotes.YahooFinance/*.nupkg -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
