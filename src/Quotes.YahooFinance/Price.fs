@@ -5,72 +5,102 @@ open Quotes.YahooFinance.JsonApis.Providers
 open FSharp.Data
 open System.Text.RegularExpressions
 
-module Series = 
+type Interval = 
+    | Daily
+    | Weekly
+    | Monthly
+    | Quarterly
+    | SemiAnnual
+    | Annual
+    | TwoYear
+    | ThreeYear
+    | FiveYear
+    | TenYear
+    override this.ToString() = 
+        match this with
+        | Daily -> "1d"
+        | Weekly -> "1w"
+        | Monthly -> "1mo"
+        | Quarterly -> "3mo"
+        | SemiAnnual -> "6mo"
+        | Annual -> "1y"
+        | TwoYear -> "2y"
+        | ThreeYear -> "3y"
+        | FiveYear -> "5y"
+        | TenYear -> "10y"
 
-    type Interval = 
-        | Daily
-        | Weekly
-        | Monthly
-        | Quarterly
-        | SemiAnnual
-        | Annual
-        | TwoYear
-        | ThreeYear
-        | FiveYear
-        | TenYear
-        override this.ToString() = 
-            match this with
-            | Daily -> "1d"
-            | Weekly -> "1w"
-            | Monthly -> "1mo"
-            | Quarterly -> "3mo"
-            | SemiAnnual -> "6mo"
-            | Annual -> "1y"
-            | TwoYear -> "2y"
-            | ThreeYear -> "3y"
-            | FiveYear -> "5y"
-            | TenYear -> "10y"
-    
-    type QuoteQuery = 
-        { 
-            Symbol    : string
-            StartDate : System.DateTime
-            EndDate   : System.DateTime
-            Interval  : Interval
-        }
-    
-    type Quote = 
-        {   
-            Symbol        : string
-            Date          : System.DateTime
-            Open          : decimal
-            High          : decimal
-            Low           : decimal
-            Close         : decimal
-            AdjustedClose : decimal
-            Volume        : decimal
-        }
-    
-    type Dividend = 
-        {
-            Date : System.DateTime
-            Amount : decimal
-        }
-    
-    type Events = {Dividends : Dividend list option}
+type Quote = 
+    {   
+        Symbol        : string
+        Date          : System.DateTime
+        Open          : decimal
+        High          : decimal
+        Low           : decimal
+        Close         : decimal
+        AdjustedClose : decimal
+        Volume        : decimal
+    }
 
-    type Series = 
-        { 
-            Meta    : ChartProvider.Meta
-            History : Quote list
-            Events  : Events
-        }
-    
-    type QueryResponse = 
-        {
-            Data     : Series List
-            ErrorLog : string List
-        }
+type Dividend = 
+    {
+        Date   : System.DateTime
+        Amount : decimal
+    }
+
+type Meta = 
+    {
+        Currency            : string
+        Symbol              : string
+        ExchangeName        : string
+        InstrumentType      : string
+        FirstTradeDate      : int
+        RegularMarketTime   : int
+        GmtOffset           : int
+        Timezone            : string
+        ExchangeTimezonName : string
+        RegularMarketPrice  : float
+        ChartPreviousClose  : float
+        DataGranularity     : string
+        ValidRanges         : list<string>
+
+    }
+
+type Events = {Dividends : Dividend list option}
+
+type History = Quote list
+
+type ChartSeries = 
+    { 
+        Meta    : Meta
+        History : Quote list
+        Events  : Events
+    }
+
+type QuoteQuery = 
+    { 
+        Symbol    : string
+        StartDate : System.DateTime
+        EndDate   : System.DateTime
+        Interval  : Interval
+    }
+
+type QueryResponse = 
+    {
+        Data     : ChartSeries List
+        ErrorLog : string List
+    }
+
+type ErrorMsg = string
+
+module private ParsingUtils =
+
+    let generateChartQueryUrl (quoteQuery : QuoteQuery) = 
+        let datetimeToUnix dt = DateTimeOffset(dt).ToUnixTimeSeconds().ToString()
+        
+        $"https://query1.finance.yahoo.com/v8/finance/chart/{quoteQuery.Symbol}?&" +
+        $"period1={datetimeToUnix quoteQuery.StartDate}&period2={datetimeToUnix quoteQuery.EndDate}&" +
+        $"interval={quoteQuery.Interval.ToString()}&" + 
+        "includePrePost=true&events=div%7CSplit"
 
     let parseJsonDividends dividends gmtOffset = 
         match Regex.Matches(dividends, "(?<=\"amount\":\s+)\d+[.]?\d+"), Regex.Matches(dividends, "((?<=\"date\":\s+)\d+)") with
@@ -81,18 +111,27 @@ module Series =
                     { Date = DateTimeOffset.FromUnixTimeSeconds(float date_match.Value - float gmtOffset |> int64).DateTime
                       Amount = amount_match.Value |> decimal})
                 |> Seq.toList
-                |> Some
+                |> Some 
         | _ -> None
-    
-    let generateChartQueryUrl (quoteQuery : QuoteQuery) = 
 
-        let datetimeToUnix dt = DateTimeOffset(dt).ToUnixTimeSeconds() |> string
+    let parseChartMeta (chartMeta : ChartProvider.Meta) = 
+        {
+            Currency            = chartMeta.Currency
+            Symbol              = chartMeta.Symbol
+            ExchangeName        = chartMeta.ExchangeName
+            InstrumentType      = chartMeta.InstrumentType
+            FirstTradeDate      = chartMeta.FirstTradeDate
+            RegularMarketTime   = chartMeta.RegularMarketTime
+            GmtOffset           = chartMeta.Gmtoffset
+            Timezone            = chartMeta.Timezone
+            ExchangeTimezonName = chartMeta.ExchangeTimezoneName
+            RegularMarketPrice  = float chartMeta.RegularMarketPrice
+            ChartPreviousClose  = float chartMeta.ChartPreviousClose
+            DataGranularity     = chartMeta.DataGranularity
+            ValidRanges         = Array.toList chartMeta.ValidRanges
 
-        $"https://query1.finance.yahoo.com/v8/finance/chart/{quoteQuery.Symbol}?&" +
-        $"period1={datetimeToUnix quoteQuery.StartDate}&period2={datetimeToUnix quoteQuery.EndDate}&" +
-        $"interval={quoteQuery.Interval.ToString()}&" + 
-        "includePrePost=true&events=div%7CSplit"
-    
+        }
+
     let checkChartResult (chartResult : ChartProvider.Result) =
         match Array.tryExactlyOne chartResult.Indicators.Quote, 
         Array.tryExactlyOne chartResult.Indicators.Adjclose with
@@ -112,6 +151,8 @@ module Series =
         match checkChartResult chartResult with
         | Error e -> Error e
         | Ok (quote, adjClose) -> 
+            let meta = parseChartMeta chartResult.Meta
+
             let dividends = 
                 try
                     parseJsonDividends (chartResult.Events.Dividends.JsonValue.ToString()) chartResult.Meta.Gmtoffset
@@ -133,26 +174,27 @@ module Series =
                     })
                     |> Array.toList
                 
-            Ok {Meta = chartResult.Meta ; History = quoteHistory ; Events = {Dividends = dividends}}
-                    
-    let private retryCount = 5
-    let private parallelSymbols = 5
-    let private cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
+            Ok { Meta = meta
+                 History = quoteHistory 
+                 Events = {Dividends = dividends}}
+
+module private DownloadUtils = 
+    let cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
 
     let parseChart (query : QuoteQuery) (chartRoot : ChartProvider.Root) = 
         let chartError = chartRoot.Chart.Error.JsonValue.ToString()
         match Array.tryExactlyOne chartRoot.Chart.Result with
         | Some chartResult when chartError = "null" ->    
             chartResult 
-            |> populateSeries
+            |> ParsingUtils.populateSeries
             |> fun series -> 
                 cache.Set(query.ToString(), series)
                 series
         | _ -> Error chartError
 
-    let rec asyncLoadChart attempt query = 
+    let rec asyncLoadChart attempt query : Async<Result<ChartSeries, ErrorMsg>> = 
         async {
-                let queryUrl = generateChartQueryUrl query
+                let queryUrl = ParsingUtils.generateChartQueryUrl query
             try
                 match cache.TryRetrieve(query.ToString()) with
                 | Some quotes -> return quotes
@@ -167,6 +209,8 @@ module Series =
             }
     
     let rec getSymbols (queries : list<QuoteQuery>) output =
+        let retryCount = 5
+        let parallelSymbols = 5
         
         let download thisDownload =
             [| for query in thisDownload do 
@@ -183,11 +227,8 @@ module Series =
         else
             let result = download queries
             result @ output
-        
-    let private getResult queries =
-        getSymbols queries []
     
-    let private request symbol =
+    let request symbol =
         { 
             Symbol = symbol
             StartDate = DateTime.Today.AddYears(-1)
@@ -195,60 +236,44 @@ module Series =
             Interval = Daily
         }
         
-    let private startOn startOn query : QuoteQuery = 
-        {query with StartDate=startOn}
-
-    let private endOn endOn quoteQuery : QuoteQuery = 
-        {quoteQuery with EndDate=endOn}
-    
-    let private ofInterval ofInterval quoteQuery : QuoteQuery = 
-        {quoteQuery with Interval=ofInterval}
-    
-    let private foldResult (data, errorLog) (queryResult : Result<Series, string>) = 
-        match queryResult with
-        | Ok series -> (series :: data, errorLog)
-        | Error e -> (data, e :: errorLog)
-    
     let getSeries queries = 
+        let getResult queries = getSymbols queries []
+
+        let foldResult (data, errorLog) (queryResult : Result<ChartSeries, string>) = 
+            match queryResult with
+            | Ok series -> (series :: data, errorLog)
+            | Error e -> (data, e :: errorLog)
+
         queries 
         |> getResult
-        |> List.fold foldResult ([], [])
+        |> List.fold foldResult ([], []) 
         |> fun (data, errorLog) -> {Data = data ; ErrorLog = errorLog}
 
-    module BuildQuery =
+type Series =     
+    static member private Quotes(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval) =
+        let startDate = defaultArg startDate (DateTime.Today.AddYears(-1))
+        let endDate = defaultArg endDate (DateTime.Today)
+        let interval = defaultArg interval Interval.Daily
 
-        let private log message = 
-            printfn "\n %s \n" message
+        symbols
+        |> Seq.toList
+        |> List.map (fun symbol -> 
+            {
+                Symbol = symbol
+                StartDate = startDate
+                EndDate = endDate
+                Interval = interval
+            })
+        |> DownloadUtils.getSeries
 
-        let create symbol = 
-            symbol 
-            |> request 
-            |> fun query -> 
-                printfn "====== Query ======" 
-                log (query.ToString())
-                query
-            
-        let startOn startDate query = query |> startOn startDate
-        let endOn endDate query = query |> endOn endDate
-        let ofInterval interval query = query |> ofInterval interval
+    static member MetaData(symbol: seq<string>) = 
+        Series.Quotes(symbols=symbol).Data
+        |> List.map (fun xs -> xs.Meta)
 
-    type YahooQuery =
-
-        static member Quotes(symbols: seq<string>,?startDate: DateTime,?endDate: DateTime,?interval: Interval) =
-            let startDate = defaultArg startDate (DateTime.Today.AddYears(-1))
-            let endDate = defaultArg endDate (DateTime.Today)
-            let interval = defaultArg interval Interval.Daily
-
-            symbols
-            |> Seq.toList
-            |> List.map (fun symbol -> 
-                {
-                    Symbol = symbol
-                    StartDate = startDate
-                    EndDate = endDate
-                    Interval = interval
-                })
-            |> getSeries
-        
-        static member Quotes(symbol: string,?startDate: DateTime,?endDate: DateTime,?interval: Interval) =
-            YahooQuery.Quotes(symbols=[symbol],?startDate=startDate,?endDate=endDate,?interval=interval)
+    static member History(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval) = 
+        Series.Quotes(symbols=symbols,?startDate=startDate,?endDate=endDate,?interval=interval).Data
+        |> List.collect (fun xs -> xs.History)
+    
+    static member Events(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime) = 
+        Series.Quotes(symbols=symbols,?startDate=startDate,?endDate=endDate).Data
+        |> List.map (fun xs -> xs.Events)
