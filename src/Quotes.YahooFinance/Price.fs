@@ -29,9 +29,11 @@ type Interval =
         | FiveYear -> "5y"
         | TenYear -> "10y"
 
+type Symbol = string
+
 type Quote = 
     {   
-        Symbol        : string
+        Symbol        : Symbol
         Date          : System.DateTime
         Open          : decimal
         High          : decimal
@@ -50,7 +52,7 @@ type Dividend =
 type Meta = 
     {
         Currency            : string
-        Symbol              : string
+        Symbol              : Symbol
         ExchangeName        : string
         InstrumentType      : string
         FirstTradeDate      : int
@@ -67,8 +69,6 @@ type Meta =
 
 type Events = {Dividends : Dividend list option}
 
-type History = Quote list
-
 type ChartSeries = 
     { 
         Meta    : Meta
@@ -78,19 +78,13 @@ type ChartSeries =
 
 type QuoteQuery = 
     { 
-        Symbol    : string
+        Symbol    : Symbol
         StartDate : System.DateTime
         EndDate   : System.DateTime
         Interval  : Interval
     }
 
-type QueryResponse = 
-    {
-        Data     : ChartSeries List
-        ErrorLog : string List
-    }
-
-type ErrorMsg = string
+type ErrorLog = string
 
 module private ParsingUtils =
 
@@ -133,8 +127,7 @@ module private ParsingUtils =
         }
 
     let checkChartResult (chartResult : ChartProvider.Result) =
-        match Array.tryExactlyOne chartResult.Indicators.Quote, 
-        Array.tryExactlyOne chartResult.Indicators.Adjclose with
+        match Array.tryExactlyOne chartResult.Indicators.Quote, Array.tryExactlyOne chartResult.Indicators.Adjclose with
         | Some quote, Some adjClose -> 
             if Set([quote.Close.Length; 
                     quote.High.Length; 
@@ -144,10 +137,11 @@ module private ParsingUtils =
                     chartResult.Timestamp.Length; 
                     adjClose.Adjclose.Length]).Count = 1 then Ok (quote, adjClose)
             else
-                Error "Missing data error (Data is not aligned)"
-        | _ -> Error "Chart.Result Error"
+                Error "Privided Quotes data is not aligned (Provider has missing data)"
+        | _ , None -> Error "Unable to download: Adjusted Close"
+        | None, _ -> Error "Unable to download: Open/High/Low/Close/Volume"
 
-    let populateSeries (chartResult : ChartProvider.Result) = 
+    let populateSeries (chartResult : ChartProvider.Result) : Result<ChartSeries, ErrorLog> = 
         match checkChartResult chartResult with
         | Error e -> Error e
         | Ok (quote, adjClose) -> 
@@ -181,7 +175,7 @@ module private ParsingUtils =
 module private DownloadUtils = 
     let cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
 
-    let parseChart (query : QuoteQuery) (chartRoot : ChartProvider.Root) = 
+    let parseChart (query : QuoteQuery) (chartRoot : ChartProvider.Root) : Result<ChartSeries, ErrorLog> = 
         let chartError = chartRoot.Chart.Error.JsonValue.ToString()
         match Array.tryExactlyOne chartRoot.Chart.Result with
         | Some chartResult when chartError = "null" ->    
@@ -192,7 +186,7 @@ module private DownloadUtils =
                 series
         | _ -> Error chartError
 
-    let rec asyncLoadChart attempt query : Async<Result<ChartSeries, ErrorMsg>> = 
+    let rec asyncLoadChart attempt query : Async<Result<ChartSeries, ErrorLog>> = 
         async {
                 let queryUrl = ParsingUtils.generateChartQueryUrl query
             try
@@ -205,7 +199,7 @@ module private DownloadUtils =
             | e -> 
                 if attempt > 0 then
                     return! asyncLoadChart (attempt - 1) query
-                else return $"Failed to request {query.ToString()}" |> Error
+                else return (e.ToString() |> Error)
             }
     
     let rec getSymbols (queries : list<QuoteQuery>) output =
@@ -235,45 +229,86 @@ module private DownloadUtils =
             EndDate = DateTime.Today
             Interval = Daily
         }
+
+    let foldResult (data, errorLog) symbolSeriesResult = 
+        let symbol, result = symbolSeriesResult
+        match result with
+        | Ok series -> ((symbol, series) :: data, errorLog)
+        | Error e -> (data, (symbol, e) :: errorLog)
+    
+    let partitionOnResult symbols response = 
+        List.zip (Seq.toList symbols) response
+        |> List.fold foldResult ([], [])
+
+type Series =  
+    static member private displayLogs (symbolSuccess: list<Symbol * ChartSeries>, symbolFail: list<Symbol * ErrorLog>)= 
+        Console.WriteLine("\n ====== Logs ====== \n")
+        if not symbolSuccess.IsEmpty then
+            System.Threading.Thread.Sleep(2000)
+            Console.WriteLine($"- Successfully retrieved data for the following ({symbolSuccess.Length}) symbol(s) - \n")
+            symbolSuccess
+            |> List.iteri (fun i (symbol, series) -> Console.WriteLine($"{i + 1}. {symbol}"))
+            Console.WriteLine("\n ====== Logs ====== \n")
+            System.Threading.Thread.Sleep(2000)
         
-    let getSeries queries = 
-        let getResult queries = getSymbols queries []
+        if not symbolFail.IsEmpty then
+            System.Threading.Thread.Sleep(2000)
+            Console.WriteLine($"- Unable to retrieve data for the following ({symbolFail.Length}) symbol(s) - \n")
+            symbolFail
+            |> List.iteri (fun i (symbol, errorLog) -> Console.WriteLine($"{i + 1}. {symbol}"))
+            Console.WriteLine("\n ====== Logs ====== \n")
+            System.Threading.Thread.Sleep(2000)
 
-        let foldResult (data, errorLog) (queryResult : Result<ChartSeries, string>) = 
-            match queryResult with
-            | Ok series -> (series :: data, errorLog)
-            | Error e -> (data, e :: errorLog)
-
-        queries 
-        |> getResult
-        |> List.fold foldResult ([], []) 
-        |> fun (data, errorLog) -> {Data = data ; ErrorLog = errorLog}
-
-type Series =     
     static member private Quotes(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval) =
         let startDate = defaultArg startDate (DateTime.Today.AddYears(-1))
         let endDate = defaultArg endDate (DateTime.Today)
         let interval = defaultArg interval Interval.Daily
 
-        symbols
-        |> Seq.toList
-        |> List.map (fun symbol -> 
-            {
-                Symbol = symbol
-                StartDate = startDate
-                EndDate = endDate
-                Interval = interval
-            })
-        |> DownloadUtils.getSeries
-
-    static member MetaData(symbol: seq<string>) = 
-        Series.Quotes(symbols=symbol).Data
-        |> List.map (fun xs -> xs.Meta)
-
-    static member History(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval) = 
-        Series.Quotes(symbols=symbols,?startDate=startDate,?endDate=endDate,?interval=interval).Data
-        |> List.collect (fun xs -> xs.History)
+        let queries = 
+            symbols
+            |> Seq.toList
+            |> List.map (fun symbol -> 
+                {
+                    Symbol = symbol
+                    StartDate = startDate
+                    EndDate = endDate
+                    Interval = interval
+                })
+            
+        DownloadUtils.getSymbols queries []
     
-    static member Events(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime) = 
-        Series.Quotes(symbols=symbols,?startDate=startDate,?endDate=endDate).Data
-        |> List.map (fun xs -> xs.Events)
+    static member Meta(symbols: seq<string>, ?displayLogs: bool) = 
+        let displayLogs = defaultArg displayLogs false
+
+        let successfulResponse, failedResponse = 
+            Series.Quotes(symbols=symbols)
+            |> DownloadUtils.partitionOnResult symbols
+        
+        if displayLogs then Series.displayLogs(successfulResponse, failedResponse)
+        
+        successfulResponse
+        |> List.map (fun (symbol, series) -> series.Meta)
+
+    static member History(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
+        let displayLogs = defaultArg displayLogs false 
+
+        let successfulResponse, failedResponse = 
+            Series.Quotes(symbols=symbols, ?startDate=startDate, ?endDate=endDate, ?interval=interval)
+            |> DownloadUtils.partitionOnResult symbols 
+        
+        if displayLogs then Series.displayLogs(successfulResponse, failedResponse)
+
+        successfulResponse
+        |> List.collect (fun (symbol, series) -> series.History)
+    
+    static member Events(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?displayLogs: bool) = 
+        let displayLogs = defaultArg displayLogs false
+
+        let successfulResponse, failedResponse = 
+            Series.Quotes(symbols=symbols, ?startDate=startDate, ?endDate=endDate)
+            |> DownloadUtils.partitionOnResult symbols 
+        
+        if displayLogs then Series.displayLogs(successfulResponse, failedResponse)
+
+        successfulResponse
+        |> List.map (fun (symbol, series) -> series.Events)
