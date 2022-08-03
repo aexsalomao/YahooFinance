@@ -15,4 +15,5 @@ let aapl2 = Series.History(["AAPL"],
                           endDate = DateTime.Now.AddDays(-1))
 aapl2
 
+// doesn't show any logs.
 Series.History("AAPL",displayLogs=true)
