@@ -301,6 +301,9 @@ type Series =
         successfulResponse
         |> List.collect (fun (symbol, series) -> series.History)
     
+    static member History(symbol:string, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) =
+        Series.History([symbol], ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+
     static member Events(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?displayLogs: bool) = 
         let displayLogs = defaultArg displayLogs false
 
