@@ -43,7 +43,8 @@ type Quote =
     }
 
 type Dividend = 
-    {
+    {   
+        Symbol : string
         Date   : System.DateTime
         Amount : decimal
     }
@@ -345,34 +346,39 @@ type Series =
         |> List.map snd
         |> List.choose id
     
-    static member Download(symbols: string, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
-        Series.ExtractChartSeries([symbols], ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+    static member History(symbols: string, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
+        YahooFinance.ExtractChartSeries([symbols], ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+        |> List.collect (fun xs -> xs.History)
 
     /// <summary>Downloads historical ticker data from YahooFinance.</summary>
     /// <param name="symbols">A collection of ticker symbols.</param>
-    /// <param name="startDate">The start date of all downloaded time series.</param>
-    /// <param name="endDate">The end date of all downlaoded time series.</param>
+    /// <param name="startDate">The start date.</param>
+    /// <param name="endDate">The end date.</param>
     /// <param name="interval">Data granularity.</param>
     /// <param name="displayLogs">Option to display logs.</param>
-    /// <returns>Historical ticker data, Meta data, and Dividends data.</returns>
-    /// <exception cref="System.ArgumentNullException">Thrown when the input string is null.</exception>
+    /// <returns>Historical ticker data.</returns>
     /// <example>
     /// By default, if no optional parameters are specified, 
-    /// <c>Series.Download()</c>
+    /// <c>YahooFinance.History()</c>
     /// will download the most recent year of **daily** ticker history for all of the provided <c>symbols</c>.
     /// <code lang="fsharp">
     /// 
-    /// Series.Download(symbols=["MSFT"; "IBM"])
+    /// YahooFinance.History(symbols=["MSFT"; "IBM"])
     /// </code>
     /// Alternatively, the user may also opt to specify a given <c>startDate</c>, <c>endDate</c>, and/or <c>interval</c>.
     /// <code lang="fsharp">
     /// 
-    /// Series.Download(symbols=["MSFT"; "IBM"], 
-    ///                 startDate=DateTime(2015,1,1), 
-    ///                 endDate=DateTime(2020,12,31), 
-    ///                 interval=Interval.Weekly,
-    ///                 displayLogs=true)
+    /// YahooFinance.History(symbols=["MSFT"; "IBM"], 
+    ///                      startDate=DateTime(2015,1,1), 
+    ///                      endDate=DateTime(2020,12,31), 
+    ///                      interval=Interval.Weekly,
+    ///                      displayLogs=true)
     /// </code>
     /// </example>
-    static member Download(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
-        Series.ExtractChartSeries(symbols, ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+    static member History(symbols: seq<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
+        YahooFinance.ExtractChartSeries(symbols, ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+        |> List.collect (fun xs -> xs.History)
+    
+    static member Meta(symbols: list<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool)= 
+        YahooFinance.ExtractChartSeries(symbols, ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+        |> List.map (fun xs -> xs.Meta)

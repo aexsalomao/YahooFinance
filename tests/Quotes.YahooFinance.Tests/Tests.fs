@@ -10,5 +10,5 @@ open Quotes.YahooFinance
 [<Fact>]
 let ``Series.Download returns ChartSeries list`` () =
     ["MSFT"; "AMZN"; "IBM"; "AAPL"; "NovaSbeInc."]
-    |> Series.Download 
+    |> YahooFinance.History 
     |> should be ofExactType<ChartSeries> 
