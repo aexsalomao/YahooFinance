@@ -178,23 +178,23 @@ module private DownloadUtils =
     let tryParseDividends (chartResult : JsonValue) = 
         chartResult.TryGetProperty("events")
         |> Option.bind (fun eventsJson -> eventsJson.TryGetProperty("dividends"))
-        |> Option.bind (fun dividendsJson -> 
-            dividendsJson.Properties 
-            |> Array.choose (fun (_, innerDividendsJson) -> 
-                match 
-                    innerDividendsJson.TryGetProperty("amount"), 
-                    innerDividendsJson.TryGetProperty("date") 
-                with
-                | Some amountJson, 
-                  Some dateJson ->
-                    { Amount = amountJson.AsFloat() |> decimal
-                      Date = DateTimeOffset.FromUnixTimeSeconds(dateJson.AsInteger64()).DateTime} |> Some
-                | _ -> None)
-                |> fun xs -> 
-                    if xs.Length > 0 
-                    then (xs |> Array.toList |> Some) 
-                    else None)
-    
+        |> Option.bind (fun dividendsJson ->   
+                dividendsJson.Properties
+                |> Array.choose (fun (_, innerDividendsJson) -> 
+                    match 
+                        innerDividendsJson.TryGetProperty("amount"), 
+                        innerDividendsJson.TryGetProperty("date") 
+                    with
+                    | Some amountJson, 
+                        Some dateJson ->
+                        { Symbol = ""
+                          Amount = amountJson.AsFloat() |> decimal
+                          Date = DateTimeOffset.FromUnixTimeSeconds(dateJson.AsInteger64()).DateTime} |> Some
+                    | _ -> None)
+                |> function
+                | [||] -> None
+                | xs -> Some (Array.toList xs)) 
+
     let generateChartSeries (chartResult : JsonValue) (chartIndicators : JsonValue) = 
         match
             tryParseChartMeta chartResult,
@@ -238,7 +238,10 @@ module private DownloadUtils =
                           Volume = volumeJson.[i].AsDecimal()})
                     |> Array.toList
                 
-                let dividends = tryParseDividends chartResult
+                let dividends = 
+                    match tryParseDividends chartResult with
+                    | Some divList -> divList |> List.map (fun divObs -> {divObs with Symbol = meta.Symbol}) |> Some
+                    | None -> None
 
                 { Meta = meta
                   History = quotes
@@ -312,7 +315,7 @@ module private DownloadUtils =
             Console.WriteLine("\n")
         Console.WriteLine("====== Logs ====== \n")
 
-type Series =  
+type YahooFinance =  
     static member private DownloadChartSeries(symbols: seq<string>, startDate: DateTime, endDate: DateTime, interval: Interval) =
         let queries = 
             symbols
@@ -334,7 +337,7 @@ type Series =
         let displayLogs = defaultArg displayLogs false
         
         let chartSeries = 
-            Series.DownloadChartSeries(Seq.distinct symbols, startDate=startDate, endDate=endDate, interval=interval)
+            YahooFinance.DownloadChartSeries(Seq.distinct symbols, startDate=startDate, endDate=endDate, interval=interval)
 
         let successfullDownloads, failedDownloads = 
             List.zip (Seq.toList symbols) chartSeries
@@ -379,6 +382,11 @@ type Series =
         YahooFinance.ExtractChartSeries(symbols, ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
         |> List.collect (fun xs -> xs.History)
     
-    static member Meta(symbols: list<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool)= 
+    static member Meta(symbols: list<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
         YahooFinance.ExtractChartSeries(symbols, ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
         |> List.map (fun xs -> xs.Meta)
+    
+    static member Dividends(symbols: list<string>, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
+        YahooFinance.ExtractChartSeries(symbols, ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+        |> List.choose (fun xs -> xs.Dividends)
+        |> List.concat
