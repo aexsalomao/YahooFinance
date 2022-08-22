@@ -1,20 +1,23 @@
 # Changelog
 
-## [0.0.1-alpha.2] - 2022-08-22
+## [0.0.1-alpha.4] - 2022-08-22
 
 ### Changed
 
-* Reformat changelog
+- Removed time from downloaded date.
+
+## [0.0.1-alpha.2] - 2022-08-22
+
+### Changed
+- Reformat changelog
 
 ## [0.0.1-alpha.1] - 2022-08-22
 
 ### Added
-
-* Added a Changelog
-* Automated versioning.
+- Added a Changelog
+- Automated versioning.
 
 ### Changed
-
-* Open/High/Low/Close are now float rather than decimal
+- Open/High/Low/Close are now float rather than decimal
   to acknowledge tha they are split adjusted.
-* AdjustedClose is float because it is split and dividend adjusted.
+- AdjustedClose is float because it is split and dividend adjusted.
