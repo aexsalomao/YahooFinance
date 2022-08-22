@@ -234,7 +234,7 @@ module private DownloadUtils =
                     timestampJson
                     |> Array.Parallel.mapi (fun i ts -> 
                         { Symbol = meta.Symbol
-                          Date = DateTimeOffset.FromUnixTimeSeconds(ts.AsInteger64()).DateTime
+                          Date = DateTimeOffset.FromUnixTimeSeconds(ts.AsInteger64()).DateTime.Date
                           Open = openJson.[i].AsFloat()
                           High = highJson.[i].AsFloat()
                           Low = lowJson.[i].AsFloat()
