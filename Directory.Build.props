@@ -1,0 +1,13 @@
+<Project>
+    <PropertyGroup>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Authors>Antônio Salomão</Authors>
+        <PackageTags>quotes;yahoo finance;f#;</PackageTags>
+        <GeneratePathProperty>true</GeneratePathProperty>
+        <ChangeLogFile>$(MSBuildThisFileDirectory)CHANGELOG.md</ChangeLogFile>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(IsPackable)' == 'true'">
+        <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+</Project>
