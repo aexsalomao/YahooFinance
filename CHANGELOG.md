@@ -1,8 +1,15 @@
 # Changelog
 
+## [0.0.1-alpha.2] - 2022-08-22
+
+### Changed
+
+* Reformat changelog
+
 ## [0.0.1-alpha.1] - 2022-08-22
 
 ### Added
+
 * Added a Changelog
 * Automated versioning.
 
