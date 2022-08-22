@@ -33,12 +33,17 @@ type Interval =
 type Quote = 
     {   
         Symbol        : string
-        Date          : System.DateTime
-        Open          : decimal
-        High          : decimal
-        Low           : decimal
-        Close         : decimal
-        AdjustedClose : decimal
+        Date          : DateTime
+        /// Split-adjusted Opening price
+        Open          : float
+        /// Split-adjusted High price
+        High          : float
+        /// Split-adjusted Low price
+        Low           : float
+        /// Split-adjusted Close price
+        Close         : float
+        /// Split and dividend adjusted Close price
+        AdjustedClose : float
         Volume        : decimal
     }
 
@@ -55,8 +60,8 @@ type Meta =
         Symbol               : string
         ExchangeName         : string
         InstrumentType       : string
-        FirstTradeDate       : System.DateTime
-        RegularMarketTime    : System.DateTime
+        FirstTradeDate       : DateTime
+        RegularMarketTime    : DateTime
         GmtOffset            : int
         Timezone             : string
         ExchangeTimezoneName : string
@@ -77,8 +82,8 @@ type ChartSeries =
 type QuoteQuery = 
     { 
         Symbol    : string
-        StartDate : System.DateTime
-        EndDate   : System.DateTime
+        StartDate : DateTime
+        EndDate   : DateTime
         Interval  : Interval
     }
 
@@ -230,11 +235,11 @@ module private DownloadUtils =
                     |> Array.Parallel.mapi (fun i ts -> 
                         { Symbol = meta.Symbol
                           Date = DateTimeOffset.FromUnixTimeSeconds(ts.AsInteger64()).DateTime
-                          Open = openJson.[i].AsDecimal()
-                          High = highJson.[i].AsDecimal()
-                          Low = lowJson.[i].AsDecimal()
-                          Close = closeJson.[i].AsDecimal()
-                          AdjustedClose = adjCloseJson.[i].AsDecimal()
+                          Open = openJson.[i].AsFloat()
+                          High = highJson.[i].AsFloat()
+                          Low = lowJson.[i].AsFloat()
+                          Close = closeJson.[i].AsFloat()
+                          AdjustedClose = adjCloseJson.[i].AsFloat()
                           Volume = volumeJson.[i].AsDecimal()})
                     |> Array.toList
                 
