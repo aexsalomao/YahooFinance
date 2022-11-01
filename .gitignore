@@ -402,3 +402,10 @@ FodyWeavers.xsd
 .db
 data-cache
 misc
+
+# fsdocs
+tmp/
+.fsdocs
+output
+version.props
+.DS_Store
