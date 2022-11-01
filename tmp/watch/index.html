@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Quotes.YahooFinance
+</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="author" content="Antônio Salomão">
+
+    <link rel="stylesheet" id="theme_link" href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/4.6.0/materia/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-Piv4xVNRyMGpqkS2by6br4gNJ7DXjqk09RmUpJ8jgGtD7zP9yug3goQfGII0yAns" crossorigin="anonymous"></script>
+
+    <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+    <link rel="shortcut icon" type="image/x-icon" href="img/favicon.ico">
+    <link type="text/css" rel="stylesheet" href="http://localhost:8901/content/navbar-fixed-left.css" />
+    <link type="text/css" rel="stylesheet" href="http://localhost:8901/content/fsdocs-default.css" />
+    <link type="text/css" rel="stylesheet" href="http://localhost:8901/content/fsdocs-custom.css" />
+    <script type="text/javascript" src="http://localhost:8901/content/fsdocs-tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!-- BEGIN SEARCH BOX: this adds support for the search box -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/JavaScript-autoComplete/1.0.4/auto-complete.css" />
+    <!-- END SEARCH BOX: this adds support for the search box -->
+    
+<script type="text/javascript">
+    var wsUri = "ws://localhost:8901/websocket";
+    function init()
+    {
+        websocket = new WebSocket(wsUri);
+        websocket.onclose = function(evt) { onClose(evt) };
+    }
+    function onClose(evt)
+    {
+        console.log('closing');
+        websocket.close();
+        document.location.reload();
+    }
+    window.addEventListener("load", init, false);
+</script>
+
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-md navbar-light bg-secondary fixed-left" id="fsdocs-nav">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse navbar-nav-scroll" id="navbarsExampleDefault">
+            <a href="http://localhost:8901/"><img id="fsdocs-logo" src="http://localhost:8901/img/logo.png" /></a>
+            <!-- BEGIN SEARCH BOX: this adds support for the search box -->
+            <div id="header">
+                <div class="searchbox" id="fsdocs-searchbox">
+                    <label for="search-by">
+                        <i class="fas fa-search"></i>
+                    </label>
+                    <input data-search-input="" id="search-by" type="search" placeholder="Search..." />
+                    <span data-search-clear="">
+                        <i class="fas fa-times"></i>
+                    </span>
+                </div>
+            </div>
+
+            <!-- END SEARCH BOX: this adds support for the search box -->
+            <ul class="navbar-nav">
+                <li class="nav-header">Links</li>
+                <li class="nav-item" id="fsdocs-license-link"><a class="nav-link" href="{{fsdocs-license-link}}">License</a></li>
+                <li class="nav-item" id="fsdocs-release-notes-link"><a class="nav-link" href="{{fsdocs-release-notes-link}}">Release Notes</a></li>
+                <li class="nav-item" id="fsdocs-repository-link"><a class="nav-link" href="{{fsdocs-repository-link}}">Source Repository</a></li>
+                
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="http://localhost:8901/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="masthead">
+            <h3 class="muted"><a href="http://localhost:8901/">Quotes.YahooFinance</a></h3>
+        </div>
+        <hr />
+        <div class="container" id="fsdocs-content">
+            <h1><a name="Quotes-YahooFinance" class="anchor" href="#Quotes-YahooFinance">Quotes.YahooFinance</a></h1>
+<p>Quotes.YahooFinance is a library created for accessing historical stock related data from the <a href="https://finance.yahoo.com/">Yahoo! Finance</a> database.</p>
+<p>You can use <code>Quotes.YahooFinance</code> in <a href="https://github.com/dotnet/interactive">dotnet interactive</a>
+notebooks in <a href="https://code.visualstudio.com/">Visual Studio Code</a>
+or <a href="https://jupyter.org/">Jupyter</a>, or in F# scripts (<code>.fsx</code> files),
+by referencing: #r "nuget: FSharp.Data" and #r "nuget: Quotes.YahooFinance" // Use the latest version</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">open</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="id">System</span>
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="id">Quotes</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs3', 3)" onmouseover="showTip(event, 'fs3', 3)" class="id">YahooFinance</span>
+</code></pre>
+<h2><a name="Downloading-stock-quotes-and-dividend-data" class="anchor" href="#Downloading-stock-quotes-and-dividend-data">Downloading stock quotes and dividend data</a></h2>
+<ul>
+<li>You can use <code>YahooFinance.History</code> to download the ticker history of a given list of stock symbols.</li>
+</ul>
+<p>Parameters:</p>
+<ol>
+<li>
+<p><strong>symbols</strong>, required.</p>
+<p>A collection of ticker symbols.</p>
+</li>
+<li>
+<p><strong>startDate</strong>, optional.</p>
+<p>Default: One year ago - <code>DateTime.Today.AddYears(-1)</code></p>
+<p>The start date.</p>
+</li>
+<li>
+<p><strong>endDate</strong>, optional.</p>
+<p>Default: Today's date - <code>DateTime.Today</code>:</p>
+<p>The end date.</p>
+</li>
+<li>
+<p><strong>interval</strong>, optional:</p>
+<p>Dafault: Daily data - <code>Interval.Daily</code></p>
+<p>Data granularity.
+To view the different types of intervals supported, refer to the <code>Interval</code> type documentation.</p>
+</li>
+<li>
+<p><strong>displayLogs</strong>, optional:</p>
+<p>Default: false</p>
+<p>Option to display logs.</p>
+</li>
+</ol>
+<p>Examples:</p>
+<p>Downloading daily ticker data for multiple stocks.</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span onmouseout="hideTip(event, 'fs4', 4)" onmouseover="showTip(event, 'fs4', 4)" class="rt">YahooFinance</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs5', 5)" onmouseover="showTip(event, 'fs5', 5)" class="id">History</span><span class="pn">(</span><span class="fn">symbols</span> <span class="o">=</span> <span class="pn">[</span><span class="s">&quot;IBM&quot;</span><span class="pn">;</span> <span class="s">&quot;TSLA&quot;</span><span class="pn">]</span><span class="pn">,</span> 
+                     <span class="fn">startDate</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs6', 6)" onmouseover="showTip(event, 'fs6', 6)" class="vt">DateTime</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs7', 7)" onmouseover="showTip(event, 'fs7', 7)" class="id">Today</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs8', 8)" onmouseover="showTip(event, 'fs8', 8)" class="id">AddDays</span><span class="pn">(</span><span class="o">-</span><span class="n">3</span><span class="pn">)</span><span class="pn">,</span> 
+                     <span class="fn">endDate</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs6', 9)" onmouseover="showTip(event, 'fs6', 9)" class="vt">DateTime</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs9', 10)" onmouseover="showTip(event, 'fs9', 10)" class="id">Now</span><span class="pn">,</span> 
+                     <span class="fn">interval</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs10', 11)" onmouseover="showTip(event, 'fs10', 11)" class="rt">Interval</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs11', 12)" onmouseover="showTip(event, 'fs11', 12)" class="id">Daily</span><span class="pn">)</span>
+</code></pre>
+<table class="pre"><tr><td><pre><code>val it: Quote list =
+  [{ Symbol = "IBM"
+     Date = 28/10/2022 00:00:00 {Date = 28/10/2022 00:00:00;
+                                 Day = 28;
+                                 DayOfWeek = Friday;
+                                 DayOfYear = 301;
+                                 Hour = 0;
+                                 Kind = Unspecified;
+                                 Millisecond = 0;
+                                 Minute = 0;
+                                 Month = 10;
+                                 Second = 0;
+                                 Ticks = 638025120000000000L;
+                                 TimeOfDay = 00:00:00;
+                                 Year = 2022;}
+     Open = 135.5599976
+     High = 138.8600006
+     Low = 135.2200012
+     Close = 138.5099945
+     AdjustedClose = 138.5099945
+     Volume = 5964100M };
+   { Symbol = "IBM"
+     Date = 31/10/2022 00:00:00 {Date = 31/10/2022 00:00:00;
+                                 Day = 31;
+                                 DayOfWeek = Monday;
+                                 DayOfYear = 304;
+                                 Hour = 0;
+                                 Kind = Unspecified;
+                                 Millisecond = 0;
+                                 Minute = 0;
+                                 Month = 10;
+                                 Second = 0;
+                                 Ticks = 638027712000000000L;
+                                 TimeOfDay = 00:00:00;
+                                 Year = 2022;}
+     Open = 138.0599976
+     High = 138.7700043
+     Low = 136.6000061
+     Close = 138.2899933
+     AdjustedClose = 138.2899933
+     Volume = 4915300M };
+   { Symbol = "IBM"
+     Date = 01/11/2022 00:00:00 {Date = 01/11/2022 00:00:00;
+                                 Day = 1;
+                                 DayOfWeek = Tuesday;
+                                 DayOfYear = 305;
+                                 Hour = 0;
+                                 Kind = Unspecified;
+                                 Millisecond = 0;
+                                 Minute = 0;
+                                 Month = 11;
+                                 Second = 0;
+                                 Ticks = 638028576000000000L;
+                                 TimeOfDay = 00:00:00;
+                                 Year = 2022;}
+     Open = 138.25
+     High = 138.6900024
+     Low = 136.7100067
+     Close = 138.1972961
+     AdjustedClose = 138.1972961
+     Volume = 3013682M };
+   { Symbol = "TSLA"
+     Date = 28/10/2022 00:00:00 {Date = 28/10/2022 00:00:00;
+                                 Day = 28;
+                                 DayOfWeek = Friday;
+                                 DayOfYear = 301;
+                                 Hour = 0;
+                                 Kind = Unspecified;
+                                 Millisecond = 0;
+                                 Minute = 0;
+                                 Month = 10;
+                                 Second = 0;
+                                 Ticks = 638025120000000000L;
+                                 TimeOfDay = 00:00:00;
+                                 Year = 2022;}
+     Open = 225.3999939
+     High = 228.8600006
+     Low = 216.3500061
+     Close = 228.5200043
+     AdjustedClose = 228.5200043
+     Volume = 69039900M };
+   { Symbol = "TSLA"
+     Date = 31/10/2022 00:00:00 {Date = 31/10/2022 00:00:00;
+                                 Day = 31;
+                                 DayOfWeek = Monday;
+                                 DayOfYear = 304;
+                                 Hour = 0;
+                                 Kind = Unspecified;
+                                 Millisecond = 0;
+                                 Minute = 0;
+                                 Month = 10;
+                                 Second = 0;
+                                 Ticks = 638027712000000000L;
+                                 TimeOfDay = 00:00:00;
+                                 Year = 2022;}
+     Open = 226.1900024
+     High = 229.8500061
+     Low = 221.9400024
+     Close = 227.5399933
+     AdjustedClose = 227.5399933
+     Volume = 61554300M };
+   { Symbol = "TSLA"
+     Date = 01/11/2022 00:00:00 {Date = 01/11/2022 00:00:00;
+                                 Day = 1;
+                                 DayOfWeek = Tuesday;
+                                 DayOfYear = 305;
+                                 Hour = 0;
+                                 Kind = Unspecified;
+                                 Millisecond = 0;
+                                 Minute = 0;
+                                 Month = 11;
+                                 Second = 0;
+                                 Ticks = 638028576000000000L;
+                                 TimeOfDay = 00:00:00;
+                                 Year = 2022;}
+     Open = 234.0500031
+     High = 237.3950958
+     Low = 227.2799988
+     Close = 227.8200073
+     AdjustedClose = 227.8200073
+     Volume = 60936628M }]</code></pre></td></tr></table>
+
+            <div class="fsdocs-tip" id="fs1">namespace System</div>
+<div class="fsdocs-tip" id="fs2">namespace Quotes</div>
+<div class="fsdocs-tip" id="fs3">namespace Quotes.YahooFinance</div>
+<div class="fsdocs-tip" id="fs4">type YahooFinance =
+  static member Dividends: symbols: string list * ?startDate: DateTime * ?endDate: DateTime * ?interval: Interval * ?displayLogs: bool -&gt; Dividend list
+  static member History: symbols: string * ?startDate: DateTime * ?endDate: DateTime * ?interval: Interval * ?displayLogs: bool -&gt; Quote list + 1 overload
+  static member Meta: symbols: string list * ?startDate: DateTime * ?endDate: DateTime * ?interval: Interval * ?displayLogs: bool -&gt; Meta list</div>
+<div class="fsdocs-tip" id="fs5">static member YahooFinance.History: symbols: seq&lt;string&gt; * ?startDate: DateTime * ?endDate: DateTime * ?interval: Interval * ?displayLogs: bool -&gt; Quote list<br />static member YahooFinance.History: symbols: string * ?startDate: DateTime * ?endDate: DateTime * ?interval: Interval * ?displayLogs: bool -&gt; Quote list</div>
+<div class="fsdocs-tip" id="fs6">Multiple items<br />[&lt;Struct&gt;]
+type DateTime =
+  new: year: int * month: int * day: int -&gt; unit + 10 overloads
+  member Add: value: TimeSpan -&gt; DateTime
+  member AddDays: value: float -&gt; DateTime
+  member AddHours: value: float -&gt; DateTime
+  member AddMilliseconds: value: float -&gt; DateTime
+  member AddMinutes: value: float -&gt; DateTime
+  member AddMonths: months: int -&gt; DateTime
+  member AddSeconds: value: float -&gt; DateTime
+  member AddTicks: value: int64 -&gt; DateTime
+  member AddYears: value: int -&gt; DateTime
+  ...<br /><em>&lt;summary&gt;Represents an instant in time, typically expressed as a date and time of day.&lt;/summary&gt;</em><br /><br />--------------------<br />DateTime ()<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(ticks: int64, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, calendar: Globalization.Calendar) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em><br />DateTime(year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int, kind: DateTimeKind) : DateTime<br />&#160;&#160;&#160;<em>(+0 other overloads)</em></div>
+<div class="fsdocs-tip" id="fs7">property DateTime.Today: DateTime with get<br /><em>&lt;summary&gt;Gets the current date.&lt;/summary&gt;<br />&lt;returns&gt;An object that is set to today&#39;s date, with the time component set to 00:00:00.&lt;/returns&gt;</em></div>
+<div class="fsdocs-tip" id="fs8">DateTime.AddDays(value: float) : DateTime</div>
+<div class="fsdocs-tip" id="fs9">property DateTime.Now: DateTime with get<br /><em>&lt;summary&gt;Gets a &lt;see cref=&quot;T:System.DateTime&quot; /&gt; object that is set to the current date and time on this computer, expressed as the local time.&lt;/summary&gt;<br />&lt;returns&gt;An object whose value is the current local date and time.&lt;/returns&gt;</em></div>
+<div class="fsdocs-tip" id="fs10">type Interval =
+  | Daily
+  | Weekly
+  | Monthly
+  | Quarterly
+  | SemiAnnual
+  | Annual
+  | TwoYear
+  | FiveYear
+  | TenYear
+  | YearToDate
+  ...
+  override ToString: unit -&gt; string</div>
+<div class="fsdocs-tip" id="fs11">union case Interval.Daily: Interval</div>
+
+        </div>
+
+        <!-- BEGIN SEARCH BOX: this adds support for the search box -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/JavaScript-autoComplete/1.0.4/auto-complete.css" />
+        <script type="text/javascript">var fsdocs_search_baseurl = 'http://localhost:8901/';</script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lunr.js/2.3.8/lunr.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/JavaScript-autoComplete/1.0.4/auto-complete.min.js"></script>
+        <script type="text/javascript" src="http://localhost:8901/content/fsdocs-search.js"></script>
+        <!-- END SEARCH BOX: this adds support for the search box -->
+    </div>
+</body>
+
+</html>
