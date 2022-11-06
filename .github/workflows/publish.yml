@@ -25,7 +25,7 @@ jobs:
         dotnet build
         dotnet test
     - name: Build docs
-      run: dotnet fsdocs build --eval --clean --properties Configuration=Release
+      run: dotnet fsdocs build --eval --clean --strict --properties Configuration=Release
     - name: Deploy docs
       uses: peaceiris/actions-gh-pages@v3
       with:
