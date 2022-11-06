@@ -24,6 +24,8 @@ jobs:
       run: | 
         dotnet build
         dotnet test
+    - name: Build (release mode)
+      run: dotnet build --configuration Release
     - name: Build docs
       run: dotnet fsdocs build --eval --clean --strict --properties Configuration=Release
     - name: Deploy docs
