@@ -1,3 +1,7 @@
+(*** hide ***)
+#r """../src/Quotes.YahooFinance/bin/Debug/net6.0/Quotes.YahooFinance.dll"""
+#r "nuget: FSharp.Data" // If you don't reference FSharp.Data it will fail silently!
+
 (**
 Quotes.YahooFinance
 ===================
@@ -10,11 +14,6 @@ notebooks in [Visual Studio Code](https://code.visualstudio.com/)
 or [Jupyter](https://jupyter.org/), or in F# scripts (`.fsx` files), 
 by referencing (1) #r "nuget: FSharp.Data" and (2) #r "nuget: Quotes.YahooFinance, 0.0.4-alpha" // Use the latest version
 *)
-
-(*** hide ***)
-#r """..\src\Quotes.YahooFinance\bin\Debug\net6.0\Quotes.YahooFinance.dll"""
-#r "nuget: FSharp.Data" // If you don't reference FSharp.Data it will fail silently!
-(***)
 
 open Quotes.YahooFinance
 open System
