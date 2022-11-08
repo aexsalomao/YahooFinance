@@ -354,8 +354,33 @@ type YahooFinance =
         |> List.map snd
         |> List.choose id
     
-    static member History(symbols: string, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
-        YahooFinance.ExtractChartSeries([symbols], ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
+    /// <summary>Downloads historical ticker data from YahooFinance.</summary>
+    /// <param name="symbol">A ticker symbol.</param>
+    /// <param name="startDate">The start date.</param>
+    /// <param name="endDate">The end date.</param>
+    /// <param name="interval">Data granularity.</param>
+    /// <param name="displayLogs">Option to display logs.</param>
+    /// <returns>Historical ticker data.</returns>
+    /// <example>
+    /// By default, if no optional parameters are specified, 
+    /// <c>YahooFinance.History()</c>
+    /// will download the most recent year of **daily** ticker history for all of the provided <c>symbols</c>.
+    /// <code lang="fsharp">
+    /// 
+    /// YahooFinance.History("MSFT")
+    /// </code>
+    /// Alternatively, the user may also opt to specify a given <c>startDate</c>, <c>endDate</c>, and/or <c>interval</c>.
+    /// <code lang="fsharp">
+    /// 
+    /// YahooFinance.History(symbol="MSFT", 
+    ///                      startDate=DateTime(2015,1,1), 
+    ///                      endDate=DateTime(2020,12,31), 
+    ///                      interval=Interval.Weekly,
+    ///                      displayLogs=true)
+    /// </code>
+    /// </example>
+    static member History(symbol: string, ?startDate: DateTime, ?endDate: DateTime, ?interval: Interval, ?displayLogs: bool) = 
+        YahooFinance.ExtractChartSeries([symbol], ?startDate=startDate, ?endDate=endDate, ?interval=interval, ?displayLogs=displayLogs)
         |> List.collect (fun xs -> xs.History)
 
     /// <summary>Downloads historical ticker data from YahooFinance.</summary>

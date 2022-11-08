@@ -1,6 +1,9 @@
-(*** hide ***)
+(*** condition: prepare ***)
+
 #r """../src/Quotes.YahooFinance/bin/Debug/net6.0/Quotes.YahooFinance.dll"""
-#r "nuget: FSharp.Data" // If you don't reference FSharp.Data it will fail silently!
+// If you don't reference FSharp.Data it will fail silently! 
+// Make sure same version as in Quotes.YahooFinance.fsproj
+#r "nuget: FSharp.Data, 4.2.8" 
 
 (**
 Quotes.YahooFinance
@@ -12,7 +15,13 @@ Quotes.YahooFinance is a library created for accessing historical stock related 
 You can use `Quotes.YahooFinance` in [dotnet interactive](https://github.com/dotnet/interactive) 
 notebooks in [Visual Studio Code](https://code.visualstudio.com/) 
 or [Jupyter](https://jupyter.org/), or in F# scripts (`.fsx` files), 
-by referencing (1) #r "nuget: FSharp.Data" and (2) #r "nuget: Quotes.YahooFinance, 0.0.4-alpha" // Use the latest version
+by referencing
+
+    [lang=code]
+    // Use one of the following two lines
+    #r "nuget: Quotes.YahooFinance" // Use the latest version
+    #r "nuget: Quotes.YahooFinance,{{fsdocs-package-version}}" // Use a specific version  
+
 *)
 
 open Quotes.YahooFinance
@@ -64,11 +73,15 @@ A more detailed description of the parameters can be found in [YahooFinance Type
 
 - Downloading daily stock data for [International Business Machines Corporation (IBM)](https://finance.yahoo.com/quote/IBM/) and [Tesla, Inc. (TSLA)](https://finance.yahoo.com/quote/TSLA/).
 *)
-YahooFinance.History(symbols = ["IBM"; "TSLA"], 
-                     startDate = DateTime.Today.AddMonths(-1), 
-                     endDate = DateTime.Now, 
-                     interval = Interval.Daily)
-|> List.truncate 3
+
+let quotes = 
+    YahooFinance.History(symbols = ["IBM"; "TSLA"], 
+                         startDate = DateTime.Today.AddMonths(-1), 
+                         endDate = DateTime.Now, 
+                         interval = Interval.Daily)
+for quote in quotes[..3] do
+    printfn $"{quote.Symbol},{quote.Date},%.2f{quote.Open},%.2f{quote.High},%.2f{quote.Low},%.2f{quote.Close},%.2f{quote.AdjustedClose},{quote.Volume}"
+
 (*** include-output ***)
 
 (**
@@ -81,4 +94,4 @@ YahooFinance.Dividends(symbols=["KO"],
                        startDate = DateTime.Today.AddYears(-1),
                        endDate = DateTime.Now)
 |> List.truncate 3
-(*** include-output ***)
+(*** include-fsi-merged-output ***)
