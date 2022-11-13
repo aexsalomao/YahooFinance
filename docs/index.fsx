@@ -79,6 +79,7 @@ let quotes =
                          startDate = DateTime.Today.AddMonths(-1), 
                          endDate = DateTime.Now, 
                          interval = Interval.Daily)
+
 for quote in quotes[..3] do
     printfn $"{quote.Symbol},{quote.Date},%.2f{quote.Open},%.2f{quote.High},%.2f{quote.Low},%.2f{quote.Close},%.2f{quote.AdjustedClose},{quote.Volume}"
 
