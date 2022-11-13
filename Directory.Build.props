@@ -4,6 +4,7 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <Authors>Antônio Salomão</Authors>
         <PackageTags>quotes;yahoo finance;f#;</PackageTags>
+        <RepositoryUrl>https://github.com/aexsalomao/YahooFinance</RepositoryUrl>
         <GeneratePathProperty>true</GeneratePathProperty>
         <ChangeLogFile>$(MSBuildThisFileDirectory)CHANGELOG.md</ChangeLogFile>
     </PropertyGroup>
