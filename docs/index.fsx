@@ -91,8 +91,12 @@ for quote in quotes[..3] do
 - Downloading dividend data for [The Coca-Cola Company](https://finance.yahoo.com/quote/KO/)
 *)
 
-YahooFinance.Dividends(symbols=["KO"],
-                       startDate = DateTime.Today.AddYears(-1),
-                       endDate = DateTime.Now)
-|> List.truncate 3
-(*** include-fsi-merged-output ***)
+let dividends = 
+    YahooFinance.Dividends(symbols=["KO"],
+                           startDate = DateTime.Today.AddYears(-3),
+                           endDate = DateTime.Now)
+
+for dividend in dividends[..3] do
+    printfn $"{dividend.Symbol}, {dividend.Date}, {dividend.Amount} USD"
+
+(*** include-output ***)
