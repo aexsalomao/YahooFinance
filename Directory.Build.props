@@ -5,6 +5,7 @@
         <Authors>Antônio Salomão</Authors>
         <PackageTags>quotes;yahoo finance;f#;</PackageTags>
         <RepositoryUrl>https://github.com/aexsalomao/YahooFinance</RepositoryUrl>
+        <PackageProjectUrl>https://aexsalomao.github.io/YahooFinance/</PackageProjectUrl>
         <GeneratePathProperty>true</GeneratePathProperty>
         <ChangeLogFile>$(MSBuildThisFileDirectory)CHANGELOG.md</ChangeLogFile>
     </PropertyGroup>
