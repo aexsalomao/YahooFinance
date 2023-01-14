@@ -8,6 +8,7 @@
         <PackageProjectUrl>https://aexsalomao.github.io/YahooFinance/</PackageProjectUrl>
         <GeneratePathProperty>true</GeneratePathProperty>
         <ChangeLogFile>$(MSBuildThisFileDirectory)CHANGELOG.md</ChangeLogFile>
+        <RepositoryType>git</RepositoryType>
     </PropertyGroup>
     <ItemGroup Condition="'$(IsPackable)' == 'true'">
         <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
