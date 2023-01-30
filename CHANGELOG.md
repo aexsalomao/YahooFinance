@@ -1,9 +1,13 @@
 # Changelog
 
+## [0.0.5] - 2023-01-30
+
+## Changed
+- Bump version
+
 ## [0.0.1] - 2023-01-30
 
 ### Changed
-
 - Promote to full release.
 
 ## [0.0.1-alpha.4] - 2022-08-22
