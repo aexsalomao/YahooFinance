@@ -17,7 +17,7 @@ notebooks in [Visual Studio Code](https://code.visualstudio.com/)
 or [Jupyter](https://jupyter.org/), or in F# scripts (`.fsx` files), 
 by referencing
 
-    [lang=code]
+
     // Use one of the following two lines
     #r "nuget: Quotes.YahooFinance" // Use the latest version
     #r "nuget: Quotes.YahooFinance,{{fsdocs-package-version}}" // Use a specific version  
