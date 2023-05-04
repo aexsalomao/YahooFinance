@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.6] - 2023-05-04
+
+### Changed
+
+- Upper bound on FSharp.Data.Dependency
+
 ## [0.0.5] - 2023-01-30
 
 ### Changed
