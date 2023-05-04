@@ -371,7 +371,6 @@ type YahooFinance =
     /// </code>
     /// Alternatively, the user may also opt to specify a given <c>startDate</c>, <c>endDate</c>, and/or <c>interval</c>.
     /// <code lang="fsharp">
-    /// 
     /// YahooFinance.History(symbol="MSFT", 
     ///                      startDate=DateTime(2015,1,1), 
     ///                      endDate=DateTime(2020,12,31), 
@@ -395,12 +394,10 @@ type YahooFinance =
     /// <c>YahooFinance.History()</c>
     /// will download the most recent year of **daily** ticker history for all of the provided <c>symbols</c>.
     /// <code lang="fsharp">
-    /// 
     /// YahooFinance.History(symbols=["MSFT"; "IBM"])
     /// </code>
     /// Alternatively, the user may also opt to specify a given <c>startDate</c>, <c>endDate</c>, and/or <c>interval</c>.
     /// <code lang="fsharp">
-    /// 
     /// YahooFinance.History(symbols=["MSFT"; "IBM"], 
     ///                      startDate=DateTime(2015,1,1), 
     ///                      endDate=DateTime(2020,12,31), 
