@@ -3,7 +3,8 @@
 #r """../src/Quotes.YahooFinance/bin/Debug/net6.0/Quotes.YahooFinance.dll"""
 // If you don't reference FSharp.Data it will fail silently! 
 // Make sure same version as in Quotes.YahooFinance.fsproj
-#r "nuget: FSharp.Data, 5.*" 
+#r "nuget: FSharp.Data, 5.0.2" 
+
 
 (**
 Quotes.YahooFinance
