@@ -5,6 +5,9 @@
     <WarnOn>3390;$(WarnOn)</WarnOn>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Quotes.YahooFinance.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Price.fs" />
   </ItemGroup>
   <ItemGroup>

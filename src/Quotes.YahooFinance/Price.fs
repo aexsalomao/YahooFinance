@@ -87,7 +87,7 @@ type QuoteQuery =
         Interval  : Interval
     }
 
-module private ParsingUtils =
+module internal ParsingUtils =
     let generateChartQueryUrl (quoteQuery : QuoteQuery) = 
         let datetimeToUnix dt = DateTimeOffset(dt).ToUnixTimeSeconds().ToString()
         $"https://query1.finance.yahoo.com/v8/finance/chart/{quoteQuery.Symbol}?&" +
@@ -95,7 +95,8 @@ module private ParsingUtils =
         $"interval={quoteQuery.Interval.ToString()}&" + 
         "includePrePost=true&events=div%7CSplit"
 
-module private DownloadUtils = 
+module internal DownloadUtils = 
+    let userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     let cache = Runtime.Caching.createInMemoryCache (TimeSpan(hours=12,minutes=0,seconds=0))
     
     let tryParseChartResult (chartRoot : JsonValue) = 
@@ -272,7 +273,7 @@ module private DownloadUtils =
                 match cache.TryRetrieve(query.ToString()) with
                 | Some quotes -> return quotes
                 | None -> 
-                    let! chart = Http.AsyncRequestString(queryUrl)
+                    let! chart = Http.AsyncRequestString(queryUrl, headers = [ "User-Agent", userAgent ])
                     return JsonValue.TryParse(chart) |> Option.bind tryParseChartJson
             with
             | e -> 
