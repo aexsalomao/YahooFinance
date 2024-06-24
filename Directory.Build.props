@@ -6,6 +6,7 @@
         <PackageTags>quotes;yahoo finance;f#;</PackageTags>
         <RepositoryUrl>https://github.com/aexsalomao/YahooFinance</RepositoryUrl>
         <PackageProjectUrl>https://aexsalomao.github.io/YahooFinance/</PackageProjectUrl>
+        <PackageIconUrl>https://github.com/aexsalomao/YahooFinance/tree/main/docs/img/logo.png</PackageIconUrl>
         <GeneratePathProperty>true</GeneratePathProperty>
         <ChangeLogFile>$(MSBuildThisFileDirectory)CHANGELOG.md</ChangeLogFile>
         <RepositoryType>git</RepositoryType>

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.6] - 2023-05-04
+
+### Changed
+
+- Upper bound on FSharp.Data.Dependency
+
+## [0.0.5] - 2023-01-30
+
+### Changed
+- Bump version
+
+## [0.0.1] - 2023-01-30
+
+### Changed
+- Promote to full release.
+
 ## [0.0.1-alpha.4] - 2022-08-22
 
 ### Changed

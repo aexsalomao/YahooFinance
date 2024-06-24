@@ -11,7 +11,7 @@
     <Compile Include="Price.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Data" Version="4.2.8" />
+    <PackageReference Include="FSharp.Data" Version="[5.0.2]" />
     <PackageReference Include="Ionide.KeepAChangelog.Tasks" Version="0.1.8" PrivateAssets="all" />
   </ItemGroup>
 </Project>
