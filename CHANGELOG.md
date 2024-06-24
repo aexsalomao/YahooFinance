@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.7] - 2024-06-24
+
+### Fixed
+
+- Added user agent. Yahoo started denying requests without a user agent, which prevented downloading data.
+
 ## [0.0.6] - 2023-05-04
 
 ### Changed
